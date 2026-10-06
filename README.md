@@ -86,3 +86,4 @@ Suggested order: `WordDAO.upsertCounts` → `WordPairDAO.upsertCounts` → `writ
 - **Counting before writing.** `FileImporter` aggregates the whole file in memory first, so the DB sees one upsert per distinct word/pair instead of one per occurrence.
 - **Row-alias upserts.** TODOs use `INSERT ... AS new ON DUPLICATE KEY UPDATE x = x + new.x`; the older `VALUES(x)` form is deprecated in MySQL 8.0.20+.
 - **`utf8mb4_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates.
+# CS-Project
