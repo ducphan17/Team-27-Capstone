@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+
+<!-- Each tab's view and controller live in their own FXML file. -->
+<TabPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+         tabClosingPolicy="UNAVAILABLE">
+    <Tab text="Import">
+        <fx:include source="import.fxml"/>
+    </Tab>
+    <Tab text="Generate">
+        <fx:include source="generate.fxml"/>
+    </Tab>
+    <Tab text="Batch Generate">
+        <fx:include source="batch_generate.fxml"/>
+    </Tab>
+    <Tab text="Autocomplete">
+        <fx:include source="autocomplete.fxml"/>
+    </Tab>
+    <Tab text="Words Report">
+        <fx:include source="words_report.fxml"/>
+    </Tab>
+    <Tab text="Sentence History">
+        <fx:include source="sentence_history.fxml"/>
+    </Tab>
+</TabPane>

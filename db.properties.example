@@ -1,0 +1,5 @@
+# Copy this file to db.properties (same folder) and fill in your credentials.
+# db.properties is git-ignored; never commit real passwords.
+db.url=jdbc:mysql://localhost:3306/sentencebuilder
+db.user=sentencebuilder
+db.password=change-me

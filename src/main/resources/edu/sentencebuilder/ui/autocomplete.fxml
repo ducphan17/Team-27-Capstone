@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="edu.sentencebuilder.ui.AutocompleteController" spacing="12">
+    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
+    <Label text="Type a sentence. After a space, comma, or period, suggestions for the last word appear below."/>
+    <TextField fx:id="inputField" promptText="Start typing..."/>
+    <Label text="Suggestions:"/>
+    <ListView fx:id="suggestionList" VBox.vgrow="ALWAYS"/>
+</VBox>
