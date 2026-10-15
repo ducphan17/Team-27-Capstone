@@ -1,17 +1,20 @@
 package edu.sentencebuilder.parser;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import edu.sentencebuilder.dao.Database;
 import edu.sentencebuilder.dao.FileDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
 import javafx.concurrent.Task;
-
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Background task that imports one text file: tokenizes it, counts word, pair,
@@ -55,31 +58,46 @@ public class FileImporter extends Task<Void> {
         }
 
         updateMessage("Saving to database...");
-        writeToDatabase(stats);
+        // Save words, pairs, and file metadata together.
+        writeToDatabase(stats, sentences.size());
 
-        fileDAO.insert(new SourceFile(file.getFileName().toString(), stats.wordCount, sentences.size()));
         updateProgress(totalSteps, totalSteps);
         updateMessage("Imported " + stats.wordCount + " words in " + sentences.size()
                 + " sentences (" + stats.totals.size() + " distinct)");
         return null;
     }
 
-    /**
-     * TODO: write {@code stats} to MySQL with batched INSERT ... ON DUPLICATE KEY UPDATE.
-     *
-     * <p>ORDERING PROBLEM: word_pair stores word IDs (with foreign keys to word.word_id),
-     * but a brand-new word has no ID until it is inserted. So the order must be:
-     * <ol>
-     *   <li>{@code Map<String,Integer> ids = wordDAO.upsertCounts(stats.totals, stats.starts, stats.ends)}
-     *       — inserts/updates every word and returns text → word_id
-     *       (re-SELECT the IDs afterwards; getGeneratedKeys is unreliable with ON DUPLICATE KEY UPDATE);</li>
-     *   <li>{@code wordPairDAO.upsertCounts(stats.pairs, ids)} — now every pair can be mapped to IDs.</li>
-     * </ol>
-     * Do both in one transaction (setAutoCommit(false) / commit / rollback) so a failed import
-     * doesn't leave words counted without their pairs. Call updateProgress() between batches.
-     */
-    private void writeToDatabase(Stats stats) throws Exception {
-        // Intentionally left as a stub; the counting above already works.
+    //this Saves the entire import in one transaction: all records are saved,
+    //or the changes are rolled back if an operation fails.
+    private void writeToDatabase(Stats stats, int sentenceCount) throws SQLException {
+        // This method owns the shared connection and closes it when finished.
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+
+            try {
+                // Save words first so every pair can reference existing word IDs.
+                Map<String, Integer> wordIds = wordDAO.upsertCounts(
+                        conn, stats.totals, stats.starts, stats.ends);
+                wordPairDAO.upsertCounts(conn, stats.pairs, wordIds);
+
+                // Include the file record in the same transaction.
+                SourceFile sourceFile = new SourceFile(
+                        file.getFileName().toString(), stats.wordCount, sentenceCount);
+                fileDAO.insert(conn, sourceFile);
+
+                // Make the complete import permanent only after all saves succeed.
+                conn.commit();
+            } catch (SQLException | RuntimeException error) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackError) {
+                    // Preserve the original failure if rollback also fails.
+                    error.addSuppressed(rollbackError);
+                }
+                // The task's failure handler displays this error in the Import tab.
+                throw error;
+            }
+        }
     }
 
     /** In-memory counts gathered from one import, keyed by word text. */

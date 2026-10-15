@@ -1,9 +1,5 @@
 package edu.sentencebuilder.dao;
 
-import edu.sentencebuilder.generator.Follower;
-import edu.sentencebuilder.generator.WordStatsSource;
-import edu.sentencebuilder.model.Word;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -12,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import edu.sentencebuilder.generator.Follower;
+import edu.sentencebuilder.generator.WordStatsSource;
+import edu.sentencebuilder.model.Word;
 
 /**
  * Reads and writes the {@code word_pair} table, and is the database-backed
@@ -61,19 +61,52 @@ public class WordPairDAO implements WordStatsSource {
         }
     }
 
-    /**
-     * TODO: batch upsert pair counts from an import:
-     * INSERT INTO word_pair (from_word_id, to_word_id, count) VALUES (?, ?, ?) AS new
-     * ON DUPLICATE KEY UPDATE count = word_pair.count + new.count
-     * Needs word IDs, so call this only after WordDAO.upsertCounts has run.
-     *
-     * @param pairCounts from-word text → (to-word text → count)
-     * @param wordIds    word text → word_id, as returned by WordDAO.upsertCounts
-     */
-    public void upsertCounts(Map<String, Map<String, Integer>> pairCounts,
-                             Map<String, Integer> wordIds) throws SQLException {
-        throw new UnsupportedOperationException("TODO");
+    //Saves imported word-pair counts using the callers connection
+    //call this after saving words so every word already has an ID
+    public void upsertCounts(
+            Connection conn,
+            Map<String, Map<String, Integer>> pairCounts,
+            Map<String, Integer> wordIds) throws SQLException {
+
+        String sql = """
+                INSERT INTO word_pair (from_word_id, to_word_id, count)
+                VALUES (?, ?, ?) AS incoming
+                ON DUPLICATE KEY UPDATE
+                    count = word_pair.count + incoming.count
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            //Each outer entry represents one word and all its followers
+            for (Map.Entry<String, Map<String, Integer>> fromEntry
+                    : pairCounts.entrySet()) {
+                Integer fromId = wordIds.get(fromEntry.getKey());
+
+                if (fromId == null) {
+                    throw new SQLException(
+                        "Missing word ID: " + fromEntry.getKey());
+                }
+
+                //Each inner entry represents one follower of the outer word 
+                for (Map.Entry<String, Integer> toEntry
+                        : fromEntry.getValue().entrySet()){
+                    Integer toId = wordIds.get(toEntry.getKey());
+
+                    if (toId == null) {
+                        throw new SQLException(
+                            "Missing word ID: " + toEntry.getKey());
+                    }
+
+                    ps.setInt(1, fromId);
+                    ps.setInt(2, toId);
+                    ps.setInt(3, toEntry.getValue());
+                    ps.addBatch();
+                }         
+            }
+
+            ps.executeBatch();
+        }
     }
+    
 
     /**
      * TODO: add 1 to user_count for (fromWordId, toWordId), creating the row if needed:

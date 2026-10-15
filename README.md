@@ -11,34 +11,111 @@ Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 ### 1. Prerequisites
 - JDK 21 or newer (`java -version`)
 - Maven 3.9+ (`mvn -v`)
-- MySQL 8 server running locally (`brew install mysql && brew services start mysql`)
+- Git
+- MySQL 8.4 running locally
 
-### 2. Create the database
+### 2. Clone the project
+```sh
+git clone https://github.com/ducphan17/Team-27-Capstone.git
+cd Team-27-Capstone
+```
+
+### 3. Install and start MySQL
+
+#### macOS
+
+Install MySQL 8.4 with Homebrew:
+
+```sh
+brew install mysql@8.4
+brew services start mysql@8.4
+```
+
+#### Windows
+
+Install MySQL 8.4 using the [MySQL Installer](https://dev.mysql.com/downloads/installer/).
+Remember the root password and keep the default port `3306`. Make sure the
+`MySQL80` service is running from Windows Services.
+
+### 4. Create the database
+
+From the project root, run:
+
 ```sh
 mysql -u root -p < src/main/resources/schema.sql
 ```
-This creates the `sentencebuilder` database and its four tables. Optionally create
-a dedicated user instead of using root:
-```sql
-CREATE USER 'sentencebuilder'@'localhost' IDENTIFIED BY 'choose-a-password';
-GRANT ALL PRIVILEGES ON sentencebuilder.* TO 'sentencebuilder'@'localhost';
+
+Enter the MySQL root password when prompted. This creates the `sentencebuilder`
+database and its four tables.
+
+### 5. Create the application database user
+
+Open MySQL:
+
+```sh
+mysql -u root -p
 ```
 
-### 3. Configure `db.properties`
+At the `mysql>` prompt, run the following. Replace `choose-a-password` with a
+password of your choice:
+
+```sql
+CREATE USER 'sentencebuilder'@'localhost'
+IDENTIFIED BY 'choose-a-password';
+
+GRANT ALL PRIVILEGES ON sentencebuilder.*
+TO 'sentencebuilder'@'localhost';
+
+FLUSH PRIVILEGES;
+exit;
+```
+
+If the user already exists, use `ALTER USER` instead of `CREATE USER`:
+
+```sql
+ALTER USER 'sentencebuilder'@'localhost'
+IDENTIFIED BY 'choose-a-password';
+
+GRANT ALL PRIVILEGES ON sentencebuilder.*
+TO 'sentencebuilder'@'localhost';
+
+FLUSH PRIVILEGES;
+exit;
+```
+
+### 6. Configure `db.properties`
+
+#### macOS
+
 ```sh
 cp db.properties.example db.properties
 ```
-Edit `db.url`, `db.user`, `db.password`. The app reads `db.properties` from the
-project root (the working directory), falling back to the classpath.
-`db.properties` is git-ignored — never commit it.
 
-### 4. Run
+#### Windows PowerShell
+
+```powershell
+Copy-Item db.properties.example db.properties
+```
+
+Edit `db.properties`:
+
+```properties
+db.url=jdbc:mysql://localhost:3306/sentencebuilder
+db.user=sentencebuilder
+db.password=choose-a-password
+```
+
+Use the same password you used when creating the MySQL user. The app reads
+`db.properties` from the project root (the working directory), falling back to
+the classpath. `db.properties` is git-ignored — never commit it.
+
+### 7. Run
 ```sh
 mvn clean javafx:run
 ```
 From an IDE, run `edu.sentencebuilder.ui.Launcher` (not `MainApp`) — see design notes.
 
-### 5. Test
+### 8. Test
 ```sh
 mvn test
 ```
