@@ -1,15 +1,16 @@
 package edu.sentencebuilder.dao;
 
-import edu.sentencebuilder.model.Word;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import edu.sentencebuilder.model.Word;
 
 /**
  * Reads and writes the {@code word} table. All SQL uses PreparedStatement.
@@ -46,20 +47,69 @@ public class WordDAO {
         throw new UnsupportedOperationException("TODO");
     }
 
-    /**
-     * TODO: batch upsert counts from an import, in one transaction:
-     * INSERT INTO word (text, total_count, start_count, end_count) VALUES (?, ?, ?, ?) AS new
-     * ON DUPLICATE KEY UPDATE total_count = word.total_count + new.total_count, ...
-     * (MySQL 8.0.19+ row-alias syntax; the older VALUES(col) form is deprecated.)
-     * Use addBatch()/executeBatch(); consider adding rewriteBatchedStatements=true to db.url.
-     *
-     * @return map from word text to word_id, needed afterwards to insert word_pair rows
-     */
-    public Map<String, Integer> upsertCounts(Map<String, Integer> totals,
-                                             Map<String, Integer> starts,
-                                             Map<String, Integer> ends) throws SQLException {
-        throw new UnsupportedOperationException("TODO");
-    }
+    // Inserts new words or adds imported counts to existing words
+    // Uses the caller's connection so the importer can save words, pairs, and
+    // the file record in one transaction.
+    public Map<String, Integer> upsertCounts(
+            Connection conn,
+            Map<String, Integer> totals,
+            Map<String, Integer> starts,
+            Map<String, Integer> ends) throws SQLException {
+        
+        String sql = """
+                INSERT INTO word (text, total_count, start_count, end_count)
+                VALUES (?, ?, ?, ?) AS incoming
+                ON DUPLICATE KEY UPDATE
+                    total_count = word.total_count + incoming.total_count,
+                    start_count = word.start_count + incoming.start_count,
+                    end_count = word.end_count + incoming.end_count
+                """;
+        
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (Map.Entry<String, Integer> entry: totals.entrySet()) {
+                String text = entry.getKey();
+
+                ps.setString(1, text);
+                ps.setInt(2, entry.getValue());
+
+                //words absent from these maps did not start or end any sentences, so we can treat them as 0
+                ps.setInt(3, starts.getOrDefault(text, 0));
+                ps.setInt(4, ends.getOrDefault(text, 0));
+
+                //queue one insert/update for each distinct word
+                ps.addBatch();
+            }
+
+            ps.executeBatch();
+        }
+
+        Map<String, Integer> wordIds = new HashMap<>();
+
+        //retrieve IDs for both newly inserted and existing words
+        String lookupSql = "SELECT word_id FROM word WHERE text = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(lookupSql)) {
+            for (String text: totals.keySet()) {
+                ps.setString(1, text);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    //using next() to return true when the word is found
+                    //Throw an error only when no matching row exists
+                    if (!rs.next()) {
+                        throw new SQLException(
+                            "Word missing after saving counts: " + text);
+                    }
+
+                    wordIds.put(text, rs.getInt("word_id"));
+                }
+            }
+        }
+        //retrieve IDs for both 
+
+        return wordIds;
+        
+
+        }
 
     /** TODO: UPDATE the editable fields of a word (Words Report tab). No deletes allowed. */
     public void update(Word word) throws SQLException {
