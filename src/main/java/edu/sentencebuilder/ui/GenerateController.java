@@ -36,6 +36,8 @@ public class GenerateController {
 
     @FXML
     private void onGenerate() {
+        if (generateButton.isDisabled()) return; // a generation task is already running
+
         String startWord = startWordField.getText().trim().toLowerCase();
         if (startWord.isEmpty()) {
             resultLabel.setText("Please enter a starting word.");
