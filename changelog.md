@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.2**
+Current version: **1.4**
 
 ## Instructions for future updates
 
@@ -30,6 +30,31 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.4 — 2026-10-20
+
+**Author:** Paulo Nicart
+
+**Checkpoint:** Completed remaining DAO persistence and query methods across `WordDAO`, `WordPairDAO`, `FileDAO`, and `SentenceDAO`.
+
+### Changes
+
+- **`WordDAO.java`:** Implemented the three remaining stubbed methods using `PreparedStatement` and `try-with-resources`, wrapping SQL failures in `DataAccessException`:
+  - `findAll()`: Loads all rows from `word` ordered alphabetically (`ORDER BY text ASC`) and maps each row using the existing `mapRow()` helper for the Words Report tab.
+  - `insertIfAbsent(String text)`: Inserts a new word with default zero counts if it does not already exist using MySQL 8 row-alias syntax (`INSERT INTO word (text) VALUES (?) AS incoming ON DUPLICATE KEY UPDATE text = word.text`), leaving existing word counts and `first_seen` timestamps untouched, then queries and returns its `word_id` for the Autocomplete tab.
+  - `update(Word word)`: Updates `text`, `total_count`, `start_count`, and `end_count` for an existing word by `word_id` to support inline edits in the Words Report tab without deleting rows.
+- **`WordPairDAO.java`:** Implemented `incrementUserCount(int fromWordId, int toWordId)`. Inserts a new pair with `count = 0` and `user_count = 1` or increments `user_count` by 1 on conflict using `AS incoming ON DUPLICATE KEY UPDATE user_count = word_pair.user_count + 1`, throwing `DataAccessException` on SQL failure.
+- **`FileDAO.java`:** Implemented `findAll()` and a private `mapRow(ResultSet)` helper to query all records from `source_file` ordered newest first (`ORDER BY imported_at DESC, file_id DESC`), converting `imported_at` timestamps to `LocalDateTime`.
+- **`SentenceDAO.java`:** Implemented the remaining read and batch-update methods:
+  - `findAll()` and a private `mapRow(ResultSet)` helper: Queries all rows from `generated_sentence` ordered newest first with an ID tie-breaker (`ORDER BY created_at DESC, id DESC`) for the Sentence History tab.
+  - `markAddedToCorpus(List<Integer> ids)`: Safely handles null or empty lists as a no-op, otherwise executes a batched `PreparedStatement` (`UPDATE generated_sentence SET added_to_corpus = TRUE WHERE id = ?`) for the Batch Generate tab.
+- **`changelog.md`:** Recorded Version 1.4 changes and updated the current version header.
+
+### Verification
+
+- Ran `mvn clean compile` and `mvn test` to verify all modified DAO classes compile cleanly under Java 21 and all existing unit tests continue to pass.
+- Pending verification: End-to-end MySQL query and mutation checks for these DAO methods once wired into the Words Report, Sentence History, Autocomplete, and Batch Generate UI controllers.
+
 ## Version 1.3 — 2026-10-19
 
 **Author:** Arath Brosig
