@@ -159,6 +159,7 @@ src/main/resources/
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm; generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
+* **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
 * 25 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4). All use in-memory data, no database.
 
@@ -177,7 +178,6 @@ src/main/resources/
 | Autocomplete | none (uses `insertIfAbsent`, `incrementUserCount`) | top followers after space/comma/period; record choices; ignore stale lookups |
 
 Also open:
-* Words Report and Sentence History load on startup and on **Refresh**; they do not yet refresh automatically after an import or a generate.
 * `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 

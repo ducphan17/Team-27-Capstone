@@ -59,12 +59,19 @@ public class WordsReportController {
         sortedWords.comparatorProperty().bind(wordTable.comparatorProperty());
         wordTable.setItems(sortedWords);
         wordTable.getSortOrder().add(textColumn); // alphabetical by default
-
-        onRefresh();
+        // No load here: MainController calls refresh() whenever this tab is opened.
     }
 
     @FXML
     private void onRefresh() {
+        refresh();
+    }
+
+    /** Reloads all words in the background; does nothing if a load is already running. */
+    void refresh() {
+        if (refreshButton.isDisabled()) {
+            return;
+        }
         refreshButton.setDisable(true);
         statusLabel.setText("Loading words…");
         Background.run("load-words", wordDAO::findAll,

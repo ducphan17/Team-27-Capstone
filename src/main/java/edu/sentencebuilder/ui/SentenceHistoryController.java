@@ -60,12 +60,19 @@ public class SentenceHistoryController {
                 }
             }
         });
-
-        onRefresh();
+        // No load here: MainController calls refresh() whenever this tab is opened.
     }
 
     @FXML
     private void onRefresh() {
+        refresh();
+    }
+
+    /** Reloads all sentences in the background; does nothing if a load is already running. */
+    void refresh() {
+        if (refreshButton.isDisabled()) {
+            return;
+        }
         refreshButton.setDisable(true);
         statusLabel.setText("Loading sentences…");
         Background.run("load-sentences", sentenceDAO::findAll,
