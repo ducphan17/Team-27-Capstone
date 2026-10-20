@@ -12,18 +12,25 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
+import javafx.util.StringConverter;
 
 /**
- * Generate tab: produces one sentence from a user-chosen starting word and
- * algorithm, shows it, and saves it to {@code generated_sentence}.
+ * Generate tab: produces one sentence from a user-chosen starting word,
+ * algorithm, and maximum length, shows it, and saves it to {@code generated_sentence}.
  * Database work runs on a background {@link Task}; controls are updated only
  * on the JavaFX Application Thread.
  */
 public class GenerateController {
 
+    /** Upper bound for the Max words spinner. */
+    static final int MAX_WORDS_LIMIT = 100;
+
     @FXML private TextField startWordField;
     @FXML private ComboBox<String> algorithmBox;
+    @FXML private Spinner<Integer> maxWordsSpinner;
     @FXML private Button generateButton;
     @FXML private Label resultLabel;
 
@@ -32,6 +39,24 @@ public class GenerateController {
         // TODO: consider a ComboBox<SentenceGenerator> with a StringConverter using getName().
         algorithmBox.getItems().addAll("Weighted random", "Most frequent");
         algorithmBox.getSelectionModel().selectFirst();
+
+        SpinnerValueFactory.IntegerSpinnerValueFactory maxWords =
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                        1, MAX_WORDS_LIMIT, SentenceGenerator.DEFAULT_MAX_WORDS);
+        // The default converter throws on text like "abc"; keep the current value instead.
+        maxWords.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Integer value) {
+                return value == null ? "" : value.toString();
+            }
+
+            @Override
+            public Integer fromString(String text) {
+                Integer parsed = parseMaxWords(text);
+                return parsed != null ? parsed : maxWords.getValue();
+            }
+        });
+        maxWordsSpinner.setValueFactory(maxWords);
     }
 
     @FXML
@@ -43,6 +68,15 @@ public class GenerateController {
             resultLabel.setText("Please enter a starting word.");
             return;
         }
+
+        // Read the editor text directly: typed text isn't committed to the spinner
+        // until Enter or focus loss, and Enter in the word field skips both.
+        Integer maxWords = parseMaxWords(maxWordsSpinner.getEditor().getText());
+        if (maxWords == null) {
+            resultLabel.setText("Max words must be a whole number from 1 to " + MAX_WORDS_LIMIT + ".");
+            return;
+        }
+        maxWordsSpinner.getValueFactory().setValue(maxWords);
 
         WordDAO wordDAO = new WordDAO();
         WordPairDAO source = new WordPairDAO(wordDAO);
@@ -60,7 +94,7 @@ public class GenerateController {
                     throw new IllegalArgumentException(
                             "\"" + startWord + "\" isn't in the database yet. Import a text that contains it.");
                 }
-                String sentence = generator.generate(startWord);
+                String sentence = generator.generate(startWord, maxWords);
                 new SentenceDAO().insert(new GeneratedSentence(sentence, startWord, generator.getName()));
                 return sentence;
             }
@@ -83,5 +117,22 @@ public class GenerateController {
         Thread worker = new Thread(task, "generate-sentence");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * Parses the Max words text.
+     *
+     * @return a whole number from 1 to {@link #MAX_WORDS_LIMIT}, or {@code null} if the text is not one
+     */
+    static Integer parseMaxWords(String text) {
+        if (text == null) {
+            return null;
+        }
+        try {
+            int value = Integer.parseInt(text.trim());
+            return value >= 1 && value <= MAX_WORDS_LIMIT ? value : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

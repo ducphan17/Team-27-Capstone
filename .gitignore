@@ -4,3 +4,4 @@ target/
 .vscode/
 db.properties
 .DS_Store
+samples/

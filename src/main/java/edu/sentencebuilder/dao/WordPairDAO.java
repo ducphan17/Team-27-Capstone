@@ -109,11 +109,25 @@ public class WordPairDAO implements WordStatsSource {
     
 
     /**
-     * TODO: add 1 to user_count for (fromWordId, toWordId), creating the row if needed:
-     * INSERT INTO word_pair (from_word_id, to_word_id, user_count) VALUES (?, ?, 1)
-     * ON DUPLICATE KEY UPDATE user_count = user_count + 1
+     * Adds 1 to user_count for the pair, creating the row (count 0) if needed.
+     * Must not be called on the JavaFX Application Thread.
+     *
+     * @throws DataAccessException if the upsert fails
      */
-    public void incrementUserCount(int fromWordId, int toWordId) throws SQLException {
-        throw new UnsupportedOperationException("TODO");
+    public void incrementUserCount(int fromWordId, int toWordId) {
+        String sql = """
+                INSERT INTO word_pair (from_word_id, to_word_id, count, user_count)
+                VALUES (?, ?, 0, 1) AS incoming
+                ON DUPLICATE KEY UPDATE user_count = word_pair.user_count + 1
+                """;
+        try (Connection conn = Database.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, fromWordId);
+            ps.setInt(2, toWordId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException(
+                    "Could not increment user count for pair " + fromWordId + " -> " + toWordId, e);
+        }
     }
 }

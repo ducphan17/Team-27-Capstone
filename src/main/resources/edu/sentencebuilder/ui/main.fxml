@@ -3,8 +3,10 @@
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 
-<!-- Each tab's view and controller live in their own FXML file. -->
+<!-- Each tab's view and controller live in their own FXML file.
+     MainController reloads the report tabs when they are selected. -->
 <TabPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+         fx:controller="edu.sentencebuilder.ui.MainController"
          tabClosingPolicy="UNAVAILABLE">
     <Tab text="Import">
         <fx:include source="import.fxml"/>
@@ -18,10 +20,10 @@
     <Tab text="Autocomplete">
         <fx:include source="autocomplete.fxml"/>
     </Tab>
-    <Tab text="Words Report">
-        <fx:include source="words_report.fxml"/>
+    <Tab fx:id="wordsReportTab" text="Words Report">
+        <fx:include fx:id="wordsReport" source="words_report.fxml"/>
     </Tab>
-    <Tab text="Sentence History">
-        <fx:include source="sentence_history.fxml"/>
+    <Tab fx:id="sentenceHistoryTab" text="Sentence History">
+        <fx:include fx:id="sentenceHistory" source="sentence_history.fxml"/>
     </Tab>
 </TabPane>

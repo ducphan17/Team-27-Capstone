@@ -1,0 +1,14 @@
+/* Shared styles for the SentenceBuilder tabs. */
+
+/* Sentence History: sentences generated more than once.
+   Setting -fx-background (not -fx-background-color) lets Modena pick a readable
+   text color. Author styles beat Modena's, so restore the selection colors too. */
+.table-row-cell.duplicate {
+    -fx-background: #fde9b3;
+}
+.table-row-cell.duplicate:selected {
+    -fx-background: -fx-selection-bar-non-focused;
+}
+.table-view:focused .table-row-cell.duplicate:selected {
+    -fx-background: -fx-selection-bar;
+}

@@ -15,8 +15,9 @@
     <HBox spacing="8">
         <Label text="Filter:"/>
         <TextField fx:id="filterField" promptText="word contains..."/>
-        <Button text="Refresh" onAction="#onRefresh"/>
+        <Button fx:id="refreshButton" text="Refresh" onAction="#onRefresh"/>
     </HBox>
+    <Label text="Click a column header to sort. Double-click a count to edit it; press Enter to save."/>
     <TableView fx:id="wordTable" editable="true" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="textColumn" text="Word" prefWidth="200"/>
@@ -25,4 +26,5 @@
             <TableColumn fx:id="endColumn" text="End count" prefWidth="100"/>
         </columns>
     </TableView>
+    <Label fx:id="statusLabel" text=" "/>
 </VBox>
