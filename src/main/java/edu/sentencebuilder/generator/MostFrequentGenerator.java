@@ -8,14 +8,10 @@ import java.util.ArrayList;
  * Deterministic generator: always picks the follower with the highest
  * {@code count + user_count}.
  *
- * <p>STUB. Always choosing the top follower quickly falls into loops such as
- * "of the of the of the ...": if "the" is the top follower of "of" and "of" is a
- * top follower of "the", the sentence never ends. Before implementing, decide on a loop-avoidance rule, e.g.:
- * <ul>
- *   <li>skip a follower if the pair (current, follower) already appears in {@code sentenceSoFar};</li>
- *   <li>or take the most frequent follower not used in the last N words;</li>
- *   <li>or fall back to the 2nd/3rd most frequent when the top one would repeat.</li>
- * </ul>
+ * <p>Always choosing the top follower quickly falls into loops such as
+ * "of the of the of the ...". To avoid that, a follower is skipped if the pair
+ * (current, follower) already appears in the sentence; the next most frequent
+ * follower is tried instead, and the sentence ends if every follower would repeat a pair.
  */
 public class MostFrequentGenerator extends SentenceGenerator {
 
@@ -34,9 +30,6 @@ public class MostFrequentGenerator extends SentenceGenerator {
 
     @Override
     protected String chooseNext(String current, List<Follower> followers, List<String> sentenceSoFar) {
-        // TODO: sort followers by weight() descending and return the first one that
-        //       passes your loop-avoidance rule (see class Javadoc). Return null if none do.
-
         // Create a copy of the list to avoid modifying the original database results
         List<Follower> sortedFollowers = new ArrayList<>(followers);
 

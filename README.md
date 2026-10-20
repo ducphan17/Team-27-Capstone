@@ -4,7 +4,8 @@ A statistical "auto-complete on steroids": imports text files, stores word and
 word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
-> This is starter code. See [What works vs. what's stubbed](#what-works-vs-whats-stubbed).
+> Work in progress: importing and the Generate tab work; other tabs are still being built.
+> See [What works vs. what's stubbed](#what-works-vs-whats-stubbed).
 
 ## Setup
 
@@ -139,21 +140,31 @@ src/main/resources/
 **Working**
 - `pom.xml`: compiles, tests, `javafx:run`.
 - `Database`: loads `db.properties`, opens connections.
-- `WordDAO.findByText`, `WordPairDAO.getFollowers` / `getWord`, `FileDAO.insert`, `SentenceDAO.insert`.
+- `WordDAO.findByText / upsertCounts`, `WordPairDAO.getFollowers / getWord / upsertCounts`, `FileDAO.insert`, `SentenceDAO.insert`.
 - `Tokenizer` first version (+ 8 tests).
-- `FileImporter`: reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, records the file in `source_file`.
-- `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator` (+ 6 tests).
+- `FileImporter`: reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves
+  words → pairs → `source_file` row in one transaction (rolled back if any step fails).
+- `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator` (+ 6 tests);
+  `MostFrequentGenerator` skips a (current, next) pair already used in the sentence (+ 1 test).
 - Import tab: FileChooser, progress bar and status bound to the task.
+- Generate tab: start word (lowercased; Enter or button) + algorithm; generates on a background Task,
+  saves to `generated_sentence`, shows a clear message for blank or unknown words.
 
 **Stubbed (TODO comments explain each)**
-- `FileImporter.writeToDatabase` — **the important next step**; until it's done, imports only add a `source_file` row. Mind the word-before-pair ordering described in its TODO.
-- `WordDAO.findAll / insertIfAbsent / upsertCounts / update`, `WordPairDAO.upsertCounts / incrementUserCount`, `FileDAO.findAll`, `SentenceDAO.findAll / markAddedToCorpus`.
-- `MostFrequentGenerator.chooseNext` (needs a loop-avoidance rule).
-- Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
-- Generate, Batch Generate, Autocomplete, Words Report, Sentence History tabs: layout only.
 
-Suggested order: `WordDAO.upsertCounts` → `WordPairDAO.upsertCounts` → `writeToDatabase`
-→ Generate tab → Words Report → Sentence History → Autocomplete → Batch Generate → MostFrequentGenerator.
+| Tab | DAO work needed | Tab work needed |
+|---|---|---|
+| Words Report | `WordDAO.findAll`, `WordDAO.update` | load in a Task; `FilteredList` + `SortedList`; editable cells, no deletes |
+| Sentence History | `SentenceDAO.findAll` | give columns `fx:id`s; highlight duplicate sentences |
+| Batch Generate | new `WordDAO` query for words with `start_count > 0`; `SentenceDAO.markAddedToCorpus` | start words weighted by `start_count`; "Add to corpus" needs `FileImporter` to accept text, not only a `Path` |
+| Autocomplete | `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount` | top followers after space/comma/period; record choices; ignore stale lookups |
+
+Also open:
+- `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
+- Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
+- No automated tests for the UI controllers or DAOs; those are checked manually against MySQL (see `changelog.md`).
+
+Suggested order: Words Report → Sentence History → Batch Generate → Autocomplete → Tokenizer edge cases.
 
 ## Design notes
 - **`Launcher` class.** If the main class extends `Application` and JavaFX is on the classpath, the JVM aborts with "JavaFX runtime components are missing". A plain `main` that calls `MainApp.main()` skips that check, so the app runs from any IDE without `module-info.java`.

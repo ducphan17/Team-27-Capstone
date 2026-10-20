@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.2**
+Current version: **1.4**
 
 ## Instructions for future updates
 
@@ -30,6 +30,33 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.4 — 2026-10-19
+
+**Author:** Tien Phan
+
+**Checkpoint:** Wire Generate tab to generators and SentenceDAO.
+
+### Changes
+
+- **`GenerateController.java`:** Implemented `onGenerate()`. Validates and lowercases the start word on the UI thread, selects Weighted random or Most frequent, then runs word lookup, generation, and `SentenceDAO.insert` inside a background `Task`. Shows the sentence or error message and re-enables the button in `setOnSucceeded` / `setOnFailed`.
+- **`generate.fxml`:** Added `onAction="#onGenerate"` on the start-word field so Enter also generates.
+- **`README.md`:** Updated the status note and "What works vs. what's stubbed": import persistence, `MostFrequentGenerator`, and the Generate tab are now listed as working; remaining work is grouped by tab with the DAO methods each needs; suggested order refreshed.
+- **`MostFrequentGenerator.java`:** Replaced the outdated "STUB" Javadoc and leftover TODO with a description of the implemented loop-avoidance rule. No behavior change.
+- **`changelog.md`:** Added this checkpoint entry.
+
+### Verification
+
+- `mvn clean test`: all 15 unit tests pass (Tokenizer 8, WeightedRandomGenerator 6, MostFrequentGenerator 1).
+- Blank start word shows "Please enter a starting word." and does not start a Task.
+- Unknown word (not in DB) shows `Could not generate: "…" isn't in the database yet…` and re-enables Generate.
+- Known word with Weighted random produces a capitalized sentence ending in `.`, displays it, and inserts a `generated_sentence` row.
+- Known word with Most frequent does the same with that algorithm name stored.
+- Generate stays disabled while "Generating…" is shown and is re-enabled after success or failure (no stuck button after an error).
+-- Imported a local test file containing `Zibble frump wobbles. Zibble frump wobbles. Zibble frump hops. Zibble plonk naps.` (made-up words so existing data can't affect results).
+- Most frequent from `zibble` produced `Zibble frump wobbles.` on every click; Weighted random produced all three expected sentences (`… wobbles.`, `… hops.`, `Zibble plonk naps.`).
+- `generated_sentence` rows matched each successful click with lowercase `start_word` and the correct `algorithm`; no rows were saved for blank or unknown start words.
+
 ## Version 1.3 — 2026-10-19
 
 **Author:** Arath Brosig
