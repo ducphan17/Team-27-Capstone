@@ -67,7 +67,7 @@ password of your choice:
 CREATE USER 'sentencebuilder'@'localhost'
 IDENTIFIED BY 'choose-a-password';
 
-GRANT ALL PRIVILEGES ON sentencebuilder.\*
+GRANT ALL PRIVILEGES ON sentencebuilder.*
 TO 'sentencebuilder'@'localhost';
 
 FLUSH PRIVILEGES;
@@ -80,7 +80,7 @@ If the user already exists, use `ALTER USER` instead of `CREATE USER`:
 ALTER USER 'sentencebuilder'@'localhost'
 IDENTIFIED BY 'choose-a-password';
 
-GRANT ALL PRIVILEGES ON sentencebuilder.\*
+GRANT ALL PRIVILEGES ON sentencebuilder.*
 TO 'sentencebuilder'@'localhost';
 
 FLUSH PRIVILEGES;
@@ -140,7 +140,7 @@ src/main/java/edu/sentencebuilder/
   ui/         MainApp, Launcher, one controller per tab
 src/main/resources/
   schema.sql
-  edu/sentencebuilder/ui/\*.fxml   main.fxml + one file per tab (fx:include)
+  edu/sentencebuilder/ui/*.fxml   main.fxml + one file per tab (fx:include)
 ```
 
 ## What works vs. what's left
@@ -192,7 +192,7 @@ Suggested order: Batch Generate → Autocomplete → Tokenizer edge cases.
 * **Injected `Random`.** Generators accept a `Random` so tests can seed it and get repeatable results.
 * **Counting before writing.** `FileImporter` aggregates the whole file in memory first, so the DB sees one upsert per distinct word/pair instead of one per occurrence.
 * **Row-alias upserts.** Upserts use `INSERT ... AS incoming ON DUPLICATE KEY UPDATE x = x + incoming.x`; the older `VALUES(x)` form is deprecated in MySQL 8.0.20+.
-* **`insertIfAbsent` uses a no-op update.** It relies on `ON DUPLICATE KEY UPDATE text = word.text` rather than `INSERT IGNORE`, so existing rows and `first\_seen` stay untouched and unrelated errors are not silently swallowed.
-* **`utf8mb4\_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates. Because the collation is binary, `ORDER BY text` sorts uppercase before lowercase, which does not matter since the tokenizer lowercases everything.
+* **`insertIfAbsent` uses a no-op update.** It relies on `ON DUPLICATE KEY UPDATE text = word.text` rather than `INSERT IGNORE`, so existing rows and `first_seen` stay untouched and unrelated errors are not silently swallowed.
+* **`utf8mb4_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates. Because the collation is binary, `ORDER BY text` sorts uppercase before lowercase, which does not matter since the tokenizer lowercases everything.
 * **Words Report edits.** `WordDAO.update` can change `text`, which has a UNIQUE key, so renaming a word to an existing one would throw `DataAccessException`. The tab keeps the Word column read-only and edits counts only.
 

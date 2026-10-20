@@ -17,6 +17,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.StringConverter;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -40,6 +42,8 @@ public class WordsReportController {
     /** Every loaded word; refreshes replace its contents so the filter and sort stay in place. */
     private final ObservableList<Word> allWords = FXCollections.observableArrayList();
     private FilteredList<Word> filteredWords;
+    /** IDs of words with a save in progress. Only touched on the FX thread. */
+    private final Set<Integer> savingWordIds = new HashSet<>();
 
     @FXML
     private void initialize() {
@@ -96,6 +100,14 @@ public class WordsReportController {
             Integer oldValue = event.getOldValue();
             Integer newValue = event.getNewValue();
 
+            // One save per word at a time, so an older save can't finish last
+            // (or fail and undo) after a newer edit.
+            if (savingWordIds.contains(word.getWordId())) {
+                wordTable.refresh();
+                statusLabel.setText("Still saving \"" + word.getText() + "\"; edit it again when the save finishes.");
+                return;
+            }
+
             String problem;
             if (newValue == null) {
                 problem = "Counts must be whole numbers.";
@@ -117,12 +129,21 @@ public class WordsReportController {
         wordTable.refresh();
         wordTable.sort(); // the edited column may be the sort key
         statusLabel.setText("Saving \"" + word.getText() + "\"…");
+        int wordId = word.getWordId();
+        savingWordIds.add(wordId);
+        // The background thread gets a snapshot, never the Word the table is editing.
+        Word snapshot = new Word(wordId, word.getText(), word.getTotalCount(),
+                word.getStartCount(), word.getEndCount(), word.getFirstSeen());
         Background.run("update-word", () -> {
-                    wordDAO.update(word);
+                    wordDAO.update(snapshot);
                     return null;
                 },
-                ignored -> statusLabel.setText("Saved \"" + word.getText() + "\"."),
+                ignored -> {
+                    savingWordIds.remove(wordId);
+                    statusLabel.setText("Saved \"" + word.getText() + "\".");
+                },
                 error -> {
+                    savingWordIds.remove(wordId);
                     undo.run();
                     wordTable.refresh();
                     wordTable.sort();
