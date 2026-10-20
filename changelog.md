@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.4**
+Current version: **1.5**
 
 ## Instructions for future updates
 
@@ -30,6 +30,31 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.5 — 2026-10-20
+
+**Author:** Ben Quidlat
+
+**Checkpoint:** Words Report and Sentence History tabs implemented on top of the v1.4 DAO methods.
+
+### Changes
+
+- **`ui/Background.java` (new):** Small helper that runs a DAO call in a `javafx.concurrent.Task` on a daemon thread and delivers success/failure callbacks on the FX thread. `describe(Throwable)` turns a failure into a readable message that includes the root cause (e.g. "Could not load words (db.properties not found ...)").
+- **`WordsReportController.java` / `words_report.fxml`:** Loads `WordDAO.findAll()` on startup and on Refresh. Words sit in a `FilteredList` → `SortedList` bound to the table's sort order, so the filter and sort survive a refresh. Filter is a case-insensitive substring match. Count, Start count, and End count are editable (`TextFieldTableCell` with a lenient integer converter); edits are validated (no negatives, start/end ≤ total, whole numbers only) and saved with `WordDAO.update` in a background task. A failed save reverts the cell and shows the error. The Word column is read-only to avoid UNIQUE-key collisions. Added a status label (word count / "N of M match the filter" / save results).
+- **`SentenceHistoryController.java` / `sentence_history.fxml`:** Loads `SentenceDAO.findAll()` (newest first) on startup and on Refresh. Columns wired with `fx:id`s; added a **Times** column showing how often each sentence was generated. A row factory adds the `duplicate` style class to sentences that occur more than once; status label summarizes the count.
+- **`ui/app.css` (new):** `duplicate` row highlight, with selection colors preserved.
+- **Tests (new):** `WordsReportControllerTest` (6) for filtering, count validation, and the integer converter; `SentenceHistoryControllerTest` (4) for duplicate counting and the summary text.
+- **`README.md`:** Updated implemented / still-to-do lists.
+- **`.gitignore`:** Added `samples/` so local test texts are not committed.
+
+### Verification
+
+- Main and test sources compile with `javac --release 21`; all 25 unit tests pass (Maven was not available on the dev machine, so tests were run with a reflection-based runner over the same classes).
+- Headless JavaFX smoke test (no database configured): both FXML files and `main.fxml` load; load failures show the `db.properties` message and re-enable Refresh; default sort is alphabetical and column sort works; filter "CAT" shows `cat`, `concatenate`; invalid and non-numeric edits are rejected without saving; a valid edit whose save fails is reverted; duplicate rows receive the `duplicate` class and the Times column shows the right counts.
+- Ran the app against a local MySQL 8.0.43 server with all six tabs visible. Imported a 2,058-word original sample text (`the-storm-keeper.txt`, not committed); the Import tab reported "Imported 2058 words in 190 sentences (529 distinct)". Checked in MySQL: 529 rows in `word` with `total_count` summing to 2,058, start and end counts each summing to 190, 1,351 rows in `word_pair`, and one `source_file` row.
+- Words Report with that data: Refresh loads the words in alphabetical order, and spot-checked counts match MySQL (e.g. `his` total 48, start 21).
+- Words Report filter narrows the table and updates the status line; a count edit shows "Saved" and the new value is still there after restarting the app and refreshing.
+- **Pending:** check Sentence History duplicate highlighting with real rows (needs the Generate tab, or test rows inserted directly); run `mvn test`.
 
 ## Version 1.4 — 2026-10-20
 

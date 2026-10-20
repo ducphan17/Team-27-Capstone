@@ -156,7 +156,10 @@ src/main/resources/
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` with consecutive-bigram loop avoidance.
 * `Tokenizer` first version.
-* 15 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), and `MostFrequentGenerator` (1). All use in-memory fakes, no database.
+* **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
+* **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
+* `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
+* 25 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4). All use in-memory data, no database.
 
 **Verification status**
 
@@ -166,11 +169,12 @@ src/main/resources/
 
 **Still to do**
 
-* Generate, Batch Generate, Autocomplete, Words Report, and Sentence History tabs: layout only. The DAO methods they need now exist; the controllers still need to call them from background `Task`s.
+* Generate, Batch Generate, and Autocomplete tabs: layout only (Generate is in progress on `feature/generate-tab`). The DAO methods they need now exist; the controllers still need to call them from background `Task`s.
+* Words Report and Sentence History load once when the app starts and on **Refresh**; they do not yet refresh automatically after an import or a generate.
 * Wire the generators to the real database (`WordPairDAO` as the `WordStatsSource`) in the UI.
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 
-Suggested order: Generate tab → Words Report → Sentence History → Autocomplete → Batch Generate.
+Suggested order: Generate tab → Autocomplete → Batch Generate.
 
 ## Design notes
 
@@ -183,5 +187,5 @@ Suggested order: Generate tab → Words Report → Sentence History → Autocomp
 * **Row-alias upserts.** Upserts use `INSERT ... AS incoming ON DUPLICATE KEY UPDATE x = x + incoming.x`; the older `VALUES(x)` form is deprecated in MySQL 8.0.20+.
 * **`insertIfAbsent` uses a no-op update.** It relies on `ON DUPLICATE KEY UPDATE text = word.text` rather than `INSERT IGNORE`, so existing rows and `first\_seen` stay untouched and unrelated errors are not silently swallowed.
 * **`utf8mb4\_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates. Because the collation is binary, `ORDER BY text` sorts uppercase before lowercase, which does not matter since the tokenizer lowercases everything.
-* **Words Report edits.** `WordDAO.update` can change `text`, which has a UNIQUE key. Renaming a word to an existing one throws `DataAccessException`, so the tab should show that message.
+* **Words Report edits.** `WordDAO.update` can change `text`, which has a UNIQUE key, so renaming a word to an existing one would throw `DataAccessException`. The tab keeps the Word column read-only and edits counts only.
 
