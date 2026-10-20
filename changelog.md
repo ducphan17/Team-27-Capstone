@@ -30,6 +30,21 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+## Version 1.3 — 2026-10-19
+
+**Author:** Arath Brosig
+
+**Checkpoint:** Implemented MostFrequentGenerator loop avoidance
+
+### Changes
+
+- **`MostFrequentGenerator.java`:** Implemented the most-frequent algorithm logic. Added consecutive bigram loop-avoidance to prevent infinite recursion during sentence generation by checking candidate pairs against `sentenceSoFar`.
+- **`changelog.md`:** Added this history, contributor attribution, an entry template, and the team's version-increment rules.
+
+### Verification
+
+- Added and ran `MostFrequentGeneratorTest.java` utilizing an in-memory `WordStatsSource` fake. Confirmed the loop avoidance logic successfully terminated an artificial infinte bigram loop ("hello"->"world"->"hello") before reaching the maximum word limit.
+- Next task: Integrate generators with the real database (WordPairDAO) or wire them into the JavaFX UI controller. Pending tasks are not implemented in this checkpoint.
 
 ## Version 1.2 — 2026-10-17
 
