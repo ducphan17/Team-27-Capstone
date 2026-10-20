@@ -35,28 +35,30 @@ Entry template:
 
 **Author:** Ben Quidlat
 
-**Checkpoint:** Words Report and Sentence History tabs implemented on top of the v1.5 DAO methods.
+**Checkpoint:** Words Report and Sentence History tabs implemented on top of the v1.5 DAO methods; Generate tab gets a Max words setting.
 
 ### Changes
 
 - **`ui/Background.java` (new):** Small helper that runs a DAO call in a `javafx.concurrent.Task` on a daemon thread and delivers success/failure callbacks on the FX thread. `describe(Throwable)` turns a failure into a readable message that includes the root cause (e.g. "Could not load words (db.properties not found ...)").
-- **`WordsReportController.java` / `words_report.fxml`:** Loads `WordDAO.findAll()` on startup and on Refresh. Words sit in a `FilteredList` → `SortedList` bound to the table's sort order, so the filter and sort survive a refresh. Filter is a case-insensitive substring match. Count, Start count, and End count are editable (`TextFieldTableCell` with a lenient integer converter); edits are validated (no negatives, start/end ≤ total, whole numbers only) and saved with `WordDAO.update` in a background task. A failed save reverts the cell and shows the error. The Word column is read-only to avoid UNIQUE-key collisions. Added a status label (word count / "N of M match the filter" / save results).
-- **`SentenceHistoryController.java` / `sentence_history.fxml`:** Loads `SentenceDAO.findAll()` (newest first) on startup and on Refresh. Columns wired with `fx:id`s; added a **Times** column showing how often each sentence was generated. A row factory adds the `duplicate` style class to sentences that occur more than once; status label summarizes the count.
+- **`WordsReportController.java` / `words_report.fxml`:** Loads `WordDAO.findAll()` when the tab is opened and on Refresh. Words sit in a `FilteredList` → `SortedList` bound to the table's sort order, so the filter and sort survive a refresh. Filter is a case-insensitive substring match. Count, Start count, and End count are editable (`TextFieldTableCell` with a lenient integer converter); edits are validated (no negatives, start/end ≤ total, whole numbers only) and saved with `WordDAO.update` in a background task. A failed save reverts the cell and shows the error. The Word column is read-only to avoid UNIQUE-key collisions. Added a status label (word count / "N of M match the filter" / save results).
+- **`SentenceHistoryController.java` / `sentence_history.fxml`:** Loads `SentenceDAO.findAll()` (newest first) when the tab is opened and on Refresh. Columns wired with `fx:id`s; added a **Times** column showing how often each sentence was generated. A row factory adds the `duplicate` style class to sentences that occur more than once; status label summarizes the count.
 - **`MainController.java` (new) / `main.fxml`:** `main.fxml` now has a controller. It listens for the Words Report and Sentence History tabs being selected and calls their `refresh()`, so both tabs show the latest imports and generated sentences without pressing Refresh. The tabs no longer load at startup (only when opened). `refresh()` does nothing if a load is already running.
+- **`generate.fxml` / `GenerateController.java`:** Added an editable **Max words** spinner (1–100, default `SentenceGenerator.DEFAULT_MAX_WORDS` = 20); `onGenerate()` now calls `generate(startWord, maxWords)`. The typed text is validated when Generate runs, because an editable spinner does not commit typed text until Enter or focus loss and Enter in the start-word field skips both. Invalid text shows "Max words must be a whole number from 1 to 100." and does not start a Task. A lenient converter keeps the previous value instead of throwing on text like "abc".
 - **`ui/app.css` (new):** `duplicate` row highlight, with selection colors preserved.
-- **Tests (new):** `WordsReportControllerTest` (6) for filtering, count validation, and the integer converter; `SentenceHistoryControllerTest` (4) for duplicate counting and the summary text.
+- **Tests (new):** `WordsReportControllerTest` (6) for filtering, count validation, and the integer converter; `SentenceHistoryControllerTest` (4) for duplicate counting and the summary text; `GenerateControllerTest` (3) for the Max words parsing rules.
 - **`README.md`:** Updated implemented / still-to-do lists.
 - **`.gitignore`:** Added `samples/` so local test texts are not committed.
 
 ### Verification
 
-- Main and test sources compile with `javac --release 21`; all 25 unit tests pass (Maven was not available on the dev machine, so tests were run with a reflection-based runner over the same classes).
+- Main and test sources compile with `javac --release 21`; all 28 unit tests pass (Maven was not available on the dev machine, so tests were run with a reflection-based runner over the same classes).
 - Headless JavaFX smoke test (no database configured): both FXML files and `main.fxml` load; load failures show the `db.properties` message and re-enable Refresh; default sort is alphabetical and column sort works; filter "CAT" shows `cat`, `concatenate`; invalid and non-numeric edits are rejected without saving; a valid edit whose save fails is reverted; duplicate rows receive the `duplicate` class and the Times column shows the right counts.
 - Ran the app against a local MySQL 8.0.43 server with all six tabs visible. Imported a 2,058-word original sample text (`the-storm-keeper.txt`, not committed); the Import tab reported "Imported 2058 words in 190 sentences (529 distinct)". Checked in MySQL: 529 rows in `word` with `total_count` summing to 2,058, start and end counts each summing to 190, 1,351 rows in `word_pair`, and one `source_file` row.
 - Words Report with that data: Refresh loads the words in alphabetical order, and spot-checked counts match MySQL (e.g. `his` total 48, start 21).
 - Words Report filter narrows the table and updates the status line; a count edit shows "Saved" and the new value is still there after restarting the app and refreshing.
 - Auto-refresh (read-only headless check against the local MySQL): neither tab loads at startup; selecting Words Report showed "529 words" and selecting Sentence History showed "32 sentences, 5 generated more than once (highlighted)", including sentences generated in the app after the tabs were built.
-- **Pending:** confirm Sentence History duplicate highlighting in the running app (test rows with repeated sentences are in the local DB; the Generate tab is now on this branch after merging main); run `mvn test`.
+- Max words (headless check): `generate.fxml` loads, the spinner starts at 20, committing "abc" or "500" keeps 20, committing "35" sets 35.
+- **Pending:** in the running app, generate with Max words set low (e.g. 3) and high (e.g. 50) and confirm sentence length; confirm Sentence History duplicate highlighting in the running app (test rows with repeated sentences are in the local DB; the Generate tab is now on this branch after merging main); run `mvn test`.
 
 ## Version 1.5 — 2026-10-20
 

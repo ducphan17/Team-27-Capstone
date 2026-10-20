@@ -156,12 +156,12 @@ src/main/resources/
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer` first version.
-* **Generate tab:** start word (lowercased; Enter or button) + algorithm; generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
+* **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 25 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4). All use in-memory data, no database.
+* 28 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
 
 **Verification status**
 
