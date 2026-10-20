@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ArrayList;
 
 import edu.sentencebuilder.model.Word;
 
@@ -31,21 +32,58 @@ public class WordDAO {
     }
 
     /**
-     * TODO: return every word, ordered by text. Used by the Words Report tab.
-     * The tab sorts/filters in memory, so one SELECT is enough.
+     * Returns every word ordered by text, for the Words Report tab.
+     * The tab sorts and filters in memory, so one SELECT is enough.
+     *
+     * @throws DataAccessException if the query fails
      */
-    public List<Word> findAll() throws SQLException {
-        throw new UnsupportedOperationException("TODO");
+    public List<Word> findAll() {
+        String sql = "SELECT word_id, text, total_count, start_count, end_count, first_seen "
+                + "FROM word ORDER BY text ASC";
+        List<Word> words = new ArrayList<>();
+        try (Connection conn = Database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                words.add(mapRow(rs));
+            }
+            return words;
+        } catch (SQLException e) {
+            throw new DataAccessException("Could not load words", e);
+        }
     }
 
-    /**
-     * TODO: insert a single word with all counts 0 (Autocomplete adds unknown words this way).
-     * Use INSERT IGNORE or ON DUPLICATE KEY UPDATE so it is safe if the word already exists,
-     * and return the word's ID (getGeneratedKeys, or SELECT afterwards).
-     */
-    public int insertIfAbsent(String text) throws SQLException {
-        throw new UnsupportedOperationException("TODO");
+/**
+ * Adds a word with all counts 0 if it is not already stored, and returns its ID.
+ * An existing row (counts, first_seen) is left untouched.
+ * Must not be called on the JavaFX Application Thread.
+ *
+ * @throws DataAccessException if the insert or lookup fails
+ */
+public int insertIfAbsent(String text) {
+    String insertSql = """
+            INSERT INTO word (text) VALUES (?) AS incoming
+            ON DUPLICATE KEY UPDATE text = word.text
+            """;
+    String lookupSql = "SELECT word_id FROM word WHERE text = ?";
+    try (Connection conn = Database.getConnection()) {
+        try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
+            ps.setString(1, text);
+            ps.executeUpdate();
+        }
+        try (PreparedStatement ps = conn.prepareStatement(lookupSql)) {
+            ps.setString(1, text);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Word missing after insert: " + text);
+                }
+                return rs.getInt("word_id");
+            }
+        }
+    } catch (SQLException e) {
+        throw new DataAccessException("Could not add word '" + text + "'", e);
     }
+}
 
     // Inserts new words or adds imported counts to existing words
     // Uses the caller's connection so the importer can save words, pairs, and
@@ -111,9 +149,26 @@ public class WordDAO {
 
         }
 
-    /** TODO: UPDATE the editable fields of a word (Words Report tab). No deletes allowed. */
-    public void update(Word word) throws SQLException {
-        throw new UnsupportedOperationException("TODO");
+    /**
+     * Updates the editable fields of a word by ID (Words Report tab). Words are never deleted.
+     * Must not be called on the JavaFX Application Thread.
+     *
+     * @throws DataAccessException if the update fails
+     */
+    public void update(Word word) {
+        String sql = "UPDATE word SET text = ?, total_count = ?, start_count = ?, end_count = ? "
+                + "WHERE word_id = ?";
+        try (Connection conn = Database.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, word.getText());
+            ps.setInt(2, word.getTotalCount());
+            ps.setInt(3, word.getStartCount());
+            ps.setInt(4, word.getEndCount());
+            ps.setInt(5, word.getWordId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataAccessException("Could not update word " + word.getWordId(), e);
+        }
     }
 
     static Word mapRow(ResultSet rs) throws SQLException {
