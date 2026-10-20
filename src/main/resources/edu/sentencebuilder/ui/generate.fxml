@@ -13,7 +13,7 @@
     <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
     <HBox spacing="8">
         <Label text="Starting word:"/>
-        <TextField fx:id="startWordField" promptText="e.g. the"/>
+        <TextField fx:id="startWordField" promptText="e.g. the" onAction="#onGenerate"/>
         <Label text="Algorithm:"/>
         <ComboBox fx:id="algorithmBox"/>
         <Button fx:id="generateButton" text="Generate" onAction="#onGenerate"/>

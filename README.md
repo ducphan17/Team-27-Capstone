@@ -4,9 +4,9 @@ A statistical "auto-complete on steroids": imports text files, stores word and
 word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
-> Work in progress. The project started from a starter skeleton; the persistence
-> layer and both generators are now implemented, and the remaining work is mostly
-> the UI tabs. See \[What works vs. what's left](#what-works-vs-whats-left).
+> Work in progress: importing, the Generate tab, Words Report, and Sentence History work;
+> Batch Generate and Autocomplete are still being built.
+> See [What works vs. what's left](#what-works-vs-whats-left).
 
 ## Setup
 
@@ -149,13 +149,14 @@ src/main/resources/
 
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
-* **Import:** `FileImporter` reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves words, word pairs, and the `source\_file` record in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
+* **Import:** `FileImporter` reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves words, word pairs, and the `source_file` record in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
 * **Word DAO:** `findByText`, `findAll`, `insertIfAbsent`, `upsertCounts`, `update`.
 * **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount`.
 * **File DAO:** `insert`, `findAll`.
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
-* **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` with consecutive-bigram loop avoidance.
+* **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer` first version.
+* **Generate tab:** start word (lowercased; Enter or button) + algorithm; generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
@@ -164,17 +165,23 @@ src/main/resources/
 **Verification status**
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
-* `WordDAO.findAll / insertIfAbsent / update`, `WordPairDAO.incrementUserCount`, `FileDAO.findAll`, and `SentenceDAO.findAll / markAddedToCorpus` are implemented but have not yet been checked against MySQL.
-* There are no automated integration tests yet; setting up an isolated test database is still pending.
+* The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
+* `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount`, `FileDAO.findAll`, and `SentenceDAO.markAddedToCorpus` are implemented but not yet checked against MySQL.
+* No automated tests for the DAOs; setting up an isolated test database is still pending.
 
 **Still to do**
 
-* Generate, Batch Generate, and Autocomplete tabs: layout only (Generate is in progress on `feature/generate-tab`). The DAO methods they need now exist; the controllers still need to call them from background `Task`s.
-* Words Report and Sentence History load once when the app starts and on **Refresh**; they do not yet refresh automatically after an import or a generate.
-* Wire the generators to the real database (`WordPairDAO` as the `WordStatsSource`) in the UI.
+| Tab | DAO work needed | Tab work needed |
+|---|---|---|
+| Batch Generate | new `WordDAO` query for words with `start_count > 0` | start words weighted by `start_count`; "Add to corpus" needs `FileImporter` to accept text, not only a `Path`; then `SentenceDAO.markAddedToCorpus` |
+| Autocomplete | none (uses `insertIfAbsent`, `incrementUserCount`) | top followers after space/comma/period; record choices; ignore stale lookups |
+
+Also open:
+* Words Report and Sentence History load on startup and on **Refresh**; they do not yet refresh automatically after an import or a generate.
+* `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 
-Suggested order: Generate tab → Autocomplete → Batch Generate.
+Suggested order: Batch Generate → Autocomplete → Tokenizer edge cases.
 
 ## Design notes
 

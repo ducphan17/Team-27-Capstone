@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.5**
+Current version: **1.6**
 
 ## Instructions for future updates
 
@@ -31,11 +31,11 @@ Entry template:
 - Note relevant checks still pending.
 ```
 
-## Version 1.5 — 2026-10-20
+## Version 1.6 — 2026-10-20
 
 **Author:** Ben Quidlat
 
-**Checkpoint:** Words Report and Sentence History tabs implemented on top of the v1.4 DAO methods.
+**Checkpoint:** Words Report and Sentence History tabs implemented on top of the v1.5 DAO methods.
 
 ### Changes
 
@@ -54,9 +54,9 @@ Entry template:
 - Ran the app against a local MySQL 8.0.43 server with all six tabs visible. Imported a 2,058-word original sample text (`the-storm-keeper.txt`, not committed); the Import tab reported "Imported 2058 words in 190 sentences (529 distinct)". Checked in MySQL: 529 rows in `word` with `total_count` summing to 2,058, start and end counts each summing to 190, 1,351 rows in `word_pair`, and one `source_file` row.
 - Words Report with that data: Refresh loads the words in alphabetical order, and spot-checked counts match MySQL (e.g. `his` total 48, start 21).
 - Words Report filter narrows the table and updates the status line; a count edit shows "Saved" and the new value is still there after restarting the app and refreshing.
-- **Pending:** check Sentence History duplicate highlighting with real rows (needs the Generate tab, or test rows inserted directly); run `mvn test`.
+- **Pending:** confirm Sentence History duplicate highlighting in the running app (test rows with repeated sentences are in the local DB; the Generate tab is now on this branch after merging main); run `mvn test`.
 
-## Version 1.4 — 2026-10-20
+## Version 1.5 — 2026-10-20
 
 **Author:** Paulo Nicart
 
@@ -73,12 +73,38 @@ Entry template:
 - **`SentenceDAO.java`:** Implemented the remaining read and batch-update methods:
   - `findAll()` and a private `mapRow(ResultSet)` helper: Queries all rows from `generated_sentence` ordered newest first with an ID tie-breaker (`ORDER BY created_at DESC, id DESC`) for the Sentence History tab.
   - `markAddedToCorpus(List<Integer> ids)`: Safely handles null or empty lists as a no-op, otherwise executes a batched `PreparedStatement` (`UPDATE generated_sentence SET added_to_corpus = TRUE WHERE id = ?`) for the Batch Generate tab.
-- **`changelog.md`:** Recorded Version 1.4 changes and updated the current version header.
+- **`changelog.md`:** Recorded these changes (originally numbered 1.4 on the `implement-dao-methods` branch; renumbered to 1.5 when merged with Tien Phan's 1.4) and updated the current version header.
 
 ### Verification
 
 - Ran `mvn clean compile` and `mvn test` to verify all modified DAO classes compile cleanly under Java 21 and all existing unit tests continue to pass.
 - Pending verification: End-to-end MySQL query and mutation checks for these DAO methods once wired into the Words Report, Sentence History, Autocomplete, and Batch Generate UI controllers.
+
+## Version 1.4 — 2026-10-19
+
+**Author:** Tien Phan
+
+**Checkpoint:** Wire Generate tab to generators and SentenceDAO.
+
+### Changes
+
+- **`GenerateController.java`:** Implemented `onGenerate()`. Validates and lowercases the start word on the UI thread, selects Weighted random or Most frequent, then runs word lookup, generation, and `SentenceDAO.insert` inside a background `Task`. Shows the sentence or error message and re-enables the button in `setOnSucceeded` / `setOnFailed`.
+- **`generate.fxml`:** Added `onAction="#onGenerate"` on the start-word field so Enter also generates.
+- **`README.md`:** Updated the status note and "What works vs. what's stubbed": import persistence, `MostFrequentGenerator`, and the Generate tab are now listed as working; remaining work is grouped by tab with the DAO methods each needs; suggested order refreshed.
+- **`MostFrequentGenerator.java`:** Replaced the outdated "STUB" Javadoc and leftover TODO with a description of the implemented loop-avoidance rule. No behavior change.
+- **`changelog.md`:** Added this checkpoint entry.
+
+### Verification
+
+- `mvn clean test`: all 15 unit tests pass (Tokenizer 8, WeightedRandomGenerator 6, MostFrequentGenerator 1).
+- Blank start word shows "Please enter a starting word." and does not start a Task.
+- Unknown word (not in DB) shows `Could not generate: "…" isn't in the database yet…` and re-enables Generate.
+- Known word with Weighted random produces a capitalized sentence ending in `.`, displays it, and inserts a `generated_sentence` row.
+- Known word with Most frequent does the same with that algorithm name stored.
+- Generate stays disabled while "Generating…" is shown and is re-enabled after success or failure (no stuck button after an error).
+-- Imported a local test file containing `Zibble frump wobbles. Zibble frump wobbles. Zibble frump hops. Zibble plonk naps.` (made-up words so existing data can't affect results).
+- Most frequent from `zibble` produced `Zibble frump wobbles.` on every click; Weighted random produced all three expected sentences (`… wobbles.`, `… hops.`, `Zibble plonk naps.`).
+- `generated_sentence` rows matched each successful click with lowercase `start_word` and the correct `algorithm`; no rows were saved for blank or unknown start words.
 
 ## Version 1.3 — 2026-10-19
 
