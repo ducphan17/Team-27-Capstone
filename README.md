@@ -127,7 +127,145 @@ From an IDE, run `edu.sentencebuilder.ui.Launcher` (not `MainApp`) — see desig
 mvn test
 ```
 
-Tests use in-memory fakes and do not need MySQL.
+Unit tests use in-memory data and do not need MySQL. Import integration tests are
+opt-in; follow [Import checkpoint: database tests](#import-checkpoint-database-tests).
+
+## Import checkpoint: database tests
+
+### 1. Review and run the focused unit tests
+
+`FileImporterStatsTest` verifies pair IDs/counts, empty pairs, and missing IDs.
+`FileImporterValidationTest` verifies the 100/101-character boundary, Unicode
+character counting, and rejection before a connection opens:
+
+```sh
+mvn -Dtest=FileImporterStatsTest,FileImporterValidationTest test
+```
+
+`FileImporter.writeToDatabase` validates every distinct, normalized word first.
+The limit is 100 Unicode code points, matching `word.text VARCHAR(100)`.
+An oversized word raises a readable error with a shortened preview; it is never
+truncated. The existing Import tab failure handler displays that error.
+
+The original importer constructor still uses application database connections.
+A package-private constructor accepts a connection factory for tests, and the
+transaction method has package access so tests can run without starting JavaFX.
+Comments in the implementation explain validation, connection ownership, and rollback.
+
+### 2. Create the isolated database and user
+
+Start MySQL 8.4 as described above, then open an administrator session:
+
+```sh
+mysql -u root -p
+```
+
+Run this SQL, choosing a separate test password:
+
+```sql
+CREATE DATABASE sentencebuilder_test
+    CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+CREATE USER 'sentencebuilder_test'@'localhost'
+    IDENTIFIED BY 'choose-a-test-password';
+GRANT ALL PRIVILEGES ON sentencebuilder_test.*
+    TO 'sentencebuilder_test'@'localhost';
+exit;
+```
+
+If the database/user already exists, reuse it or change the password with
+`ALTER USER`; keep the user's grants limited to `sentencebuilder_test.*`.
+The test database is disposable: all four test tables are cleared before and
+after each test. Do not store app data there or run two test suites against it at once.
+
+Do not use the application's `schema.sql` to initialize test tables: it contains
+`USE sentencebuilder`. Integration tests create tables automatically using the
+table-only `src/test/resources/schema-test.sql`. Keep its definitions aligned with
+the main schema. For manual initialization, run:
+
+```sh
+mysql -u sentencebuilder_test -p sentencebuilder_test < src/test/resources/schema-test.sql
+```
+
+### 3. Configure separate test credentials
+
+On macOS:
+
+```sh
+cp db-test.properties.example db-test.properties
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item db-test.properties.example db-test.properties
+```
+
+Edit the ignored `db-test.properties`:
+
+```properties
+db.url=jdbc:mysql://localhost:3306/sentencebuilder_test
+db.user=sentencebuilder_test
+db.password=choose-a-test-password
+```
+
+Keep `db.properties` pointing at your application database. Tests never read it.
+The suite requires the dedicated username and checks each connection's selected
+database before schema creation, writes, or cleanup. Missing settings, a wrong
+database, or an unavailable MySQL server fail the build rather than skip tests.
+
+### 4. Run the complete checkpoint
+
+From the project root:
+
+```sh
+mvn clean test
+mvn -Pdb-tests verify
+git diff --check
+```
+
+Plain `mvn test` runs unit tests only. The `db-tests` Maven profile adds Failsafe,
+which runs `FileImporterIT` during `verify`. Results are in
+`target/surefire-reports` and `target/failsafe-reports`.
+
+The five MySQL integration tests check:
+
+* Importing `Zorvex miplex. Zorvex talvex.` twice preserves word IDs and
+  `first_seen`, doubles imported counts, creates two file records, and preserves
+  an existing `user_count = 7`.
+* SQL and runtime failures injected by a test-only `FileDAO` after inserting file
+  metadata roll back all import writes. Fresh connections confirm all four tables
+  match their previous snapshots, including IDs and timestamps.
+* A 100-character word saves successfully.
+* Valid words followed by a 101-character word produce the expected error and
+  leave all stored rows unchanged.
+
+Rollback checks compare stored rows, not auto-increment counters; failed
+transactions may leave ID gaps.
+
+### 5. Confirm the Import tab message
+
+Create `samples/oversized-check.txt` containing ordinary text followed by a single
+101-letter word. For example, using Python 3:
+
+```sh
+python3 - <<'PYTHON'
+from pathlib import Path
+Path("samples").mkdir(exist_ok=True)
+Path("samples/oversized-check.txt").write_text("Ordinary words first. " + "a" * 101 + ".", encoding="utf-8")
+PYTHON
+mvn javafx:run
+```
+
+Import the file and expect:
+
+```text
+Import failed: Word exceeds the 100-character limit (101 characters): "aaaa…". No data was imported.
+```
+
+The actual preview contains the first 30 characters. The Choose File button must
+be enabled again. The automated tests verify unchanged database contents through
+the same validation/transaction method the UI calls; this last check verifies the
+visible JavaFX message. Stop here before Autocomplete or Batch Generate.
 
 ## Project layout
 
@@ -149,7 +287,7 @@ src/main/resources/
 
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
-* **Import:** `FileImporter` reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves words, word pairs, and the `source_file` record in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
+* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves words, word pairs, and the `source_file` record in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
 * **Word DAO:** `findByText`, `findAll`, `insertIfAbsent`, `upsertCounts`, `update`.
 * **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount`.
 * **File DAO:** `insert`, `findAll`.
@@ -161,14 +299,14 @@ src/main/resources/
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 28 unit tests covering the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
+* 36 unit tests covering import pair conversion and word-length validation (8), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
 
 **Verification status**
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount`, `FileDAO.findAll`, and `SentenceDAO.markAddedToCorpus` are implemented but not yet checked against MySQL.
-* No automated tests for the DAOs; setting up an isolated test database is still pending.
+* Automated MySQL import integration tests exercise the import DAO writes in an isolated test database; see the configuration and commands above. Other DAO methods still need their own database coverage.
 
 **Still to do**
 
@@ -181,7 +319,7 @@ Also open:
 * `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 
-Suggested order: Batch Generate → Autocomplete → Tokenizer edge cases.
+Suggested order: complete the import checkpoint above → Batch Generate → Autocomplete → Tokenizer edge cases.
 
 ## Design notes
 

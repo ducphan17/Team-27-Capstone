@@ -6,12 +6,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import edu.sentencebuilder.generator.Follower;
 import edu.sentencebuilder.generator.WordStatsSource;
 import edu.sentencebuilder.model.Word;
+import edu.sentencebuilder.model.WordPair;
 
 /**
  * Reads and writes the {@code word_pair} table, and is the database-backed
@@ -61,12 +61,11 @@ public class WordPairDAO implements WordStatsSource {
         }
     }
 
-    //Saves imported word-pair counts using the callers connection
-    //call this after saving words so every word already has an ID
+    // Saves imported word-pair records using the caller's transaction.
+    // The importer resolves word IDs before calling this method.
     public void upsertCounts(
             Connection conn,
-            Map<String, Map<String, Integer>> pairCounts,
-            Map<String, Integer> wordIds) throws SQLException {
+            List<WordPair> pairs) throws SQLException {
 
         String sql = """
                 INSERT INTO word_pair (from_word_id, to_word_id, count)
@@ -76,31 +75,12 @@ public class WordPairDAO implements WordStatsSource {
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            //Each outer entry represents one word and all its followers
-            for (Map.Entry<String, Map<String, Integer>> fromEntry
-                    : pairCounts.entrySet()) {
-                Integer fromId = wordIds.get(fromEntry.getKey());
-
-                if (fromId == null) {
-                    throw new SQLException(
-                        "Missing word ID: " + fromEntry.getKey());
-                }
-
-                //Each inner entry represents one follower of the outer word 
-                for (Map.Entry<String, Integer> toEntry
-                        : fromEntry.getValue().entrySet()){
-                    Integer toId = wordIds.get(toEntry.getKey());
-
-                    if (toId == null) {
-                        throw new SQLException(
-                            "Missing word ID: " + toEntry.getKey());
-                    }
-
-                    ps.setInt(1, fromId);
-                    ps.setInt(2, toId);
-                    ps.setInt(3, toEntry.getValue());
-                    ps.addBatch();
-                }         
+            // Each object supplies one database row; imports leave user_count unchanged.
+            for (WordPair pair : pairs) {
+                ps.setInt(1, pair.getFromWordId());
+                ps.setInt(2, pair.getToWordId());
+                ps.setInt(3, pair.getCount());
+                ps.addBatch();
             }
 
             ps.executeBatch();

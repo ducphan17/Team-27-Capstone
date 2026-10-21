@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.6**
+Current version: **1.7**
 
 ## Instructions for future updates
 
@@ -30,6 +30,41 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.7 — 2026-10-20
+
+**Author:** Aalvee Ahtav
+
+**Updated:** 2026-10-21 — Automated import verification and word-length handling.
+
+### Changes
+
+- **`WordPairDAO.java`:** Changed `upsertCounts` to accept a `List<WordPair>` instead of nested word-count maps and a word-ID map. The batch insert now reads IDs and counts directly from the existing model objects, giving the DAO a typed record interface.
+- **`FileImporter.java`:** Added `Stats.toWordPairs` to resolve database IDs and convert aggregated counts into `WordPair` objects after saving words. Missing IDs still raise `SQLException` within the import transaction. Maps remain internal lookup tables for counting and ID resolution.
+- Added code comments explaining the conversion, the counting lookup table, and the DAO batch loop. Imported counts continue to leave database `user_count` values unchanged.
+- **`FileImporter.java`:** Added a 100-character limit for normalized words, measured in Unicode code points to match `word.text VARCHAR(100)`. The importer validates every distinct word before opening a database connection and rejects the entire import with a shortened word preview and an explicit "No data was imported" message. It never truncates oversized words.
+- Added a package-private connection factory constructor and package access to `writeToDatabase` so tests can exercise the same validation and transaction code as the UI without starting JavaFX. The existing public constructor continues to use `Database.getConnection`. Comments explain character counting, connection ownership, and rollback.
+- **`FileImporterStatsTest.java` (5 tests):** Covers resolved pair IDs and aggregated counts, multiple destinations, zero imported `userCount`, empty statistics, single-word sentences, and missing source/destination IDs.
+- **`FileImporterValidationTest.java` (3 tests):** Covers acceptance at 100 characters, supplementary Unicode character counting at 100/101 characters, and rejection of a mixed valid/oversized import before a connection opens.
+- **`FileImporterIT.java` (5 tests):** Adds real MySQL checks for repeated imports, SQL/runtime rollback, successful 100-character imports, and unchanged stored rows after oversized input. Repeated imports preserve word IDs, `first_seen`, and an existing `user_count = 7`, while doubling imported counts and creating separate file records. Rollback failures are injected only through a test `FileDAO`, after all writes and before commit; fresh connections compare all four tables, including IDs and timestamps.
+- **Isolated MySQL fixtures:** Added `db-test.properties.example`, ignored local `db-test.properties`, and table-only `src/test/resources/schema-test.sql`. Tests require the dedicated `sentencebuilder_test` username and check the selected database on every connection before schema creation, writes, or cleanup. Test tables are cleared before and after each test; tests never fall back to application settings.
+- **`pom.xml`:** Added the opt-in `db-tests` profile using Maven Failsafe. `mvn test` remains database-free; `mvn -Pdb-tests verify` adds integration tests and fails when test configuration or MySQL is unavailable.
+- **`README.md`:** Added step-by-step test database/user setup, credential configuration, test commands, cleanup behavior, report locations, and the running-app oversized-word check; updated implemented behavior and automated-test coverage.
+
+### Verification
+
+- **Original refactor baseline:** `mvn clean test` compiled main/test sources under Java 21 and passed the 28 pre-existing unit tests.
+- **Automated import checkpoint:** Maven test reports show all 36 unit tests passing (including the 8 new import tests) and all 5 MySQL integration tests passing, with no failures, errors, or skipped tests. The integration suite was verified against isolated MySQL 8.4.11; the contributor subsequently configured the local test database and ran the checkpoint.
+- **Contributor walkthrough completed (2026-10-21):** Aalvee Ahtav confirmed reviewing the conversion tests and import validation, running `mvn -Dtest=FileImporterStatsTest test`, creating the isolated MySQL database/user, configuring the ignored `db-test.properties`, running `mvn clean test`, `mvn -Pdb-tests verify`, and `git diff --check`, and launching the app with `mvn javafx:run` to verify the oversized-word error. This completes all six documented setup and verification steps locally.
+- **Running-app oversized-word check (2026-10-21):** The contributor supplied a screenshot showing rejection of a 101-character word with the 100-character-limit message, a shortened preview, and "No data was imported." The Choose file button is enabled again. Unchanged database contents are verified separately by the integration test snapshots; the screenshot confirms the visible error handling.
+- `git diff --check`: passes.
+- **Manual MySQL import verification after the refactor:** Started with empty application tables and reset ID counters. Imported `repeat-check.txt` containing `Zorvex miplex. Zorvex talvex.` twice. The first import saved three words and two pairs; after the second, word IDs remained `miplex = 2`, `talvex = 1`, and `zorvex = 3`. Total/start/end counts doubled to `2/0/2`, `2/0/2`, and `4/4/0`, respectively. Both pairs (`zorvex → miplex` and `zorvex → talvex`) had count `2` and `user_count = 0`, with no duplicate rows. Two separate `source_file` records each reported 4 words and 2 sentences.
+- **Manual rollback verification after the refactor:** Used `rollback-check.txt` containing `Zorvex miplex. Rollbackzor rollbackmip.` and a temporary filename-specific `SQLException` after `fileDAO.insert` but before commit. Post-failure MySQL queries showed the original three words and two pairs with unchanged counts, no new test words or pairs, and only the two successful import records. The temporary failure block was removed afterward.
+- **Words Report regression review:** The contributor confirmed automatic loading, case-insensitive filtering (`ZOR`), column sorting, and editing worked. Changed `miplex` total count from 2 to 3; the value survived Refresh and an application restart. Negative (`-1`), nonnumeric (`abc`), and total-below-end-count (`1`) edits were rejected. Restored the total to 2; the displayed statistics matched MySQL.
+- **Generate and Sentence History review:** Both Most frequent and Weighted random generated `Zorvex talvex.` from `zorvex`. History showed the newest result first, the matching algorithm labels, and both repeated-sentence rows highlighted with Times = 2 across algorithms. Max words = 1 produced `Zorvex.` with Weighted random.
+- **Longer generation limits:** Imported `length-check.txt`, a single 52-word sentence with unique tokens from `xaa` through `xaz`, then `xba` through `xbz`. The application reported 52 words, 1 sentence, and 52 distinct words. Both algorithms produced `Xaa xab xac.` at Max words = 3 and exactly 50 words ending in `xbx.` at Max words = 50, excluding `xby` and `xbz`.
+- The earlier manual application/MySQL checks above cover the running-app generation-length and duplicate-highlighting checks left pending in v1.6. The new automated import tests now cover `Stats.toWordPairs`, the import DAO writes, transaction rollback, and word-length boundaries.
+- **Checkpoint complete:** Automated conversion/import verification, isolated test database configuration and documentation, and oversized-word rejection are covered. Stop here before Autocomplete or Batch Generate; DAO methods outside the import path still need their own MySQL verification.
 
 ## Version 1.6 — 2026-10-20
 

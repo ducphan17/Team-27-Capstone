@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ import edu.sentencebuilder.dao.FileDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
+import edu.sentencebuilder.model.WordPair;
 import javafx.concurrent.Task;
 
 /**
@@ -24,6 +26,16 @@ import javafx.concurrent.Task;
  */
 public class FileImporter extends Task<Void> {
 
+    // Keep this aligned with word.text VARCHAR(100) in schema.sql.
+    static final int MAX_WORD_LENGTH = 100;
+
+    /** A JDBC connection factory may throw SQLException, unlike Supplier<Connection>. */
+    @FunctionalInterface
+    interface ConnectionFactory {
+        Connection open() throws SQLException;
+    }
+
+    private final ConnectionFactory connections;
     private final Path file;
     private final Tokenizer tokenizer;
     private final WordDAO wordDAO;
@@ -31,6 +43,13 @@ public class FileImporter extends Task<Void> {
     private final FileDAO fileDAO;
 
     public FileImporter(Path file, Tokenizer tokenizer, WordDAO wordDAO, WordPairDAO wordPairDAO, FileDAO fileDAO) {
+        this(file, tokenizer, wordDAO, wordPairDAO, fileDAO, Database::getConnection);
+    }
+
+    // Tests supply isolated connections; the UI keeps using the original constructor.
+    FileImporter(Path file, Tokenizer tokenizer, WordDAO wordDAO, WordPairDAO wordPairDAO,
+                 FileDAO fileDAO, ConnectionFactory connections) {
+        this.connections = connections;
         this.file = file;
         this.tokenizer = tokenizer;
         this.wordDAO = wordDAO;
@@ -67,18 +86,20 @@ public class FileImporter extends Task<Void> {
         return null;
     }
 
-    //this Saves the entire import in one transaction: all records are saved,
-    //or the changes are rolled back if an operation fails.
-    private void writeToDatabase(Stats stats, int sentenceCount) throws SQLException {
+    // Package access lets tests exercise the same transaction as the UI without JavaFX startup.
+    void writeToDatabase(Stats stats, int sentenceCount) throws SQLException {
+        // Validate the whole import before opening a connection: never truncate or partly save it.
+        validateWordLengths(stats);
         // This method owns the shared connection and closes it when finished.
-        try (Connection conn = Database.getConnection()) {
+        try (Connection conn = connections.open()) {
             conn.setAutoCommit(false);
 
             try {
                 // Save words first so every pair can reference existing word IDs.
                 Map<String, Integer> wordIds = wordDAO.upsertCounts(
                         conn, stats.totals, stats.starts, stats.ends);
-                wordPairDAO.upsertCounts(conn, stats.pairs, wordIds);
+                // Resolve IDs before handing typed word-pair records to the DAO.
+                wordPairDAO.upsertCounts(conn, stats.toWordPairs(wordIds));
 
                 // Include the file record in the same transaction.
                 SourceFile sourceFile = new SourceFile(
@@ -100,14 +121,47 @@ public class FileImporter extends Task<Void> {
         }
     }
 
+    static void validateWordLengths(Stats stats) {
+        for (String word : stats.totals.keySet()) {
+            // MySQL VARCHAR length counts characters; UTF-16 length counts surrogate pairs twice.
+            int length = word.codePointCount(0, word.length());
+            if (length > MAX_WORD_LENGTH) {
+                String preview = word.substring(0, word.offsetByCodePoints(0, 30)) + "…";
+                throw new IllegalArgumentException("Word exceeds the " + MAX_WORD_LENGTH
+                        + "-character limit (" + length + " characters): \"" + preview
+                        + "\". No data was imported.");
+            }
+        }
+    }
+
     /** In-memory counts gathered from one import, keyed by word text. */
     static final class Stats {
         final Map<String, Integer> totals = new HashMap<>();
         final Map<String, Integer> starts = new HashMap<>();
         final Map<String, Integer> ends = new HashMap<>();
-        /** from-word → (to-word → count) */
+        /** Lookup table for counting repeated pairs: from-word → (to-word → count). */
         final Map<String, Map<String, Integer>> pairs = new HashMap<>();
         int wordCount;
+
+        // Convert the counting lookups into records after the words have database IDs.
+        List<WordPair> toWordPairs(Map<String, Integer> wordIds) throws SQLException {
+            List<WordPair> result = new ArrayList<>();
+            for (Map.Entry<String, Map<String, Integer>> fromEntry : pairs.entrySet()) {
+                Integer fromId = wordIds.get(fromEntry.getKey());
+                if (fromId == null) {
+                    throw new SQLException("Missing word ID: " + fromEntry.getKey());
+                }
+                for (Map.Entry<String, Integer> toEntry : fromEntry.getValue().entrySet()) {
+                    Integer toId = wordIds.get(toEntry.getKey());
+                    if (toId == null) {
+                        throw new SQLException("Missing word ID: " + toEntry.getKey());
+                    }
+                    // Imported pairs contribute to count; userCount starts at zero.
+                    result.add(new WordPair(fromId, toId, toEntry.getValue(), 0));
+                }
+            }
+            return result;
+        }
 
         void addSentence(List<String> words) {
             if (words.isEmpty()) {

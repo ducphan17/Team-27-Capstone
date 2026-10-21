@@ -1,0 +1,5 @@
+# Copy to db-test.properties. This file must never use application credentials.
+# Tests refuse connections whose selected database is not sentencebuilder_test.
+db.url=jdbc:mysql://localhost:3306/sentencebuilder_test
+db.user=sentencebuilder_test
+db.password=choose-a-test-password
