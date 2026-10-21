@@ -26,7 +26,7 @@ class FileImporterValidationTest {
     void countsSupplementaryUnicodeLettersAsSingleCharacters() {
         String letter = new String(Character.toChars(0x10428));
         assertDoesNotThrow(() -> FileImporter.validateWordLengths(count(letter.repeat(100))));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(InvalidImportException.class,
                 () -> FileImporter.validateWordLengths(count(letter.repeat(101))));
     }
 
@@ -38,7 +38,7 @@ class FileImporterValidationTest {
                     fail("An invalid import must not even open a database connection");
                     return null;
                 });
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        InvalidImportException error = assertThrows(InvalidImportException.class,
                 () -> importer.writeToDatabase(count("Valid words first. " + "a".repeat(101)), 2));
         assertTrue(error.getMessage().contains("100-character limit (101 characters)"));
         assertTrue(error.getMessage().contains("No data was imported."));

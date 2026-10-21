@@ -46,6 +46,14 @@ class FileImporterIT {
             assertNotNull(resource);
             String schema = new String(resource.readAllBytes(), StandardCharsets.UTF_8)
                     .replaceAll("(?m)--.*$", "");
+            // Rebuild the disposable schema on each suite run so changed column definitions
+            // take effect. The connection has already passed the database-name guard.
+            try (var statement = conn.createStatement()) {
+                statement.executeUpdate("DROP TABLE IF EXISTS word_pair");
+                statement.executeUpdate("DROP TABLE IF EXISTS generated_sentence");
+                statement.executeUpdate("DROP TABLE IF EXISTS source_file");
+                statement.executeUpdate("DROP TABLE IF EXISTS word");
+            }
             // This fixture contains only table DDL; database/user creation is an explicit setup step.
             for (String sql : schema.split(";")) {
                 if (!sql.isBlank()) {
@@ -218,7 +226,7 @@ class FileImporterIT {
     void oversizedWordLeavesEveryStoredRowUnchanged() throws SQLException {
         seed();
         var before = snapshot();
-        var error = assertThrows(IllegalArgumentException.class, () -> importText(
+        var error = assertThrows(InvalidImportException.class, () -> importText(
                 "Zorvex miplex. Freshword freshpair. " + "a".repeat(101) + ".", new FileDAO()));
         assertTrue(error.getMessage().contains("100-character limit (101 characters)"));
         assertTrue(error.getMessage().contains("No data was imported."));

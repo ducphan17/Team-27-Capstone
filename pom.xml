@@ -64,7 +64,7 @@
         </plugins>
     </build>
 
-    //Aalvee
+    <!-- Aalvee -->
     <!-- Database tests are opt-in; plain mvn test never connects to MySQL. -->
     <profiles>
         <profile>

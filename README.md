@@ -142,10 +142,16 @@ character counting, and rejection before a connection opens:
 mvn -Dtest=FileImporterStatsTest,FileImporterValidationTest test
 ```
 
-`FileImporter.writeToDatabase` validates every distinct, normalized word first.
+`FileImporter.call` validates every distinct, normalized word immediately after
+counting, before announcing "Saving to database...". `writeToDatabase` repeats
+validation before opening a connection, protecting direct callers too.
 The limit is 100 Unicode code points, matching `word.text VARCHAR(100)`.
-An oversized word raises a readable error with a shortened preview; it is never
-truncated. The existing Import tab failure handler displays that error.
+`Word.MAX_WORD_LENGTH` and `Word.validateTextLength` define the shared rule.
+`WordDAO.insertIfAbsent`, `upsertCounts`, and `update` also validate before writing,
+so callers such as Autocomplete cannot bypass the limit. The importer wraps a
+length failure in `InvalidImportException`, with a shortened preview and "No data
+was imported." The existing Import tab failure handler displays that error;
+oversized words are never truncated.
 
 The original importer constructor still uses application database connections.
 A package-private constructor accepts a connection factory for tests, and the
@@ -174,13 +180,15 @@ exit;
 
 If the database/user already exists, reuse it or change the password with
 `ALTER USER`; keep the user's grants limited to `sentencebuilder_test.*`.
-The test database is disposable: all four test tables are cleared before and
-after each test. Do not store app data there or run two test suites against it at once.
+The test database is disposable: all four test tables are dropped and recreated
+at suite startup, then cleared before and after each test. Do not store app data there or run two test suites against it at once.
 
 Do not use the application's `schema.sql` to initialize test tables: it contains
 `USE sentencebuilder`. Integration tests create tables automatically using the
 table-only `src/test/resources/schema-test.sql`. Keep its definitions aligned with
-the main schema. For manual initialization, run:
+the main schema. Rebuilding at suite startup applies changed definitions instead
+of retaining old tables through `CREATE TABLE IF NOT EXISTS`. Manual initialization
+alone does not migrate existing tables. For manual initialization, run:
 
 ```sh
 mysql -u sentencebuilder_test -p sentencebuilder_test < src/test/resources/schema-test.sql
@@ -299,7 +307,7 @@ src/main/resources/
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 36 unit tests covering import pair conversion and word-length validation (8), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
+* 42 unit tests covering shared word and DAO validation (6), import pair conversion and word-length validation (8), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
 
 **Verification status**
 

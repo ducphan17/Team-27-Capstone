@@ -51,8 +51,17 @@ Entry template:
 - **`pom.xml`:** Added the opt-in `db-tests` profile using Maven Failsafe. `mvn test` remains database-free; `mvn -Pdb-tests verify` adds integration tests and fails when test configuration or MySQL is unavailable.
 - **`README.md`:** Added step-by-step test database/user setup, credential configuration, test commands, cleanup behavior, report locations, and the running-app oversized-word check; updated implemented behavior and automated-test coverage.
 
+- **PR review follow-up (2026-10-21):** `FileImporter.call()` now validates immediately after counting, before displaying "Saving to database..."; validation remains at the `writeToDatabase` entry point as well.
+- Moved the shared 100-character limit and Unicode-aware check to `Word.MAX_WORD_LENGTH` / `Word.validateTextLength`. Direct `WordDAO.insertIfAbsent`, batch `upsertCounts`, and `update` calls now reject oversized text before preparing writes, covering future Autocomplete usage too.
+- Added `InvalidImportException` to distinguish invalid import input from SQL failures and unrelated runtime errors while preserving the clear no-data-imported message and original validation cause.
+- Integration tests now drop and recreate the four guarded test tables in `@BeforeAll`, applying changed fixture definitions instead of silently retaining stale tables. The README explains this lifecycle and the need to keep the test schema aligned with the application schema.
+- Added `WordTest` and `WordDAOValidationTest` (6 unit tests) for shared boundary/Unicode rules and rejection at direct DAO write entry points; updated importer tests to require `InvalidImportException`.
+- Corrected the contributor marker in `pom.xml` from Java-style text to an XML comment so Maven can parse the build file.
+
 ### Verification
 
+- **PR review follow-up:** `mvn test` passes all 42 unit tests, and `mvn -Pdb-tests verify` passes all 42 unit tests plus 5 MySQL integration tests, with no failures, errors, or skipped tests. The updated integration run rebuilds the isolated test tables before testing imports. `git diff --check` passes.
+- **Repository Git identity:** Set the local commit name/email to the contributor's confirmed values and verified with `git var GIT_AUTHOR_IDENT`. This applies to future commits; the existing PR commit has not been amended or rewritten.
 - **Original refactor baseline:** `mvn clean test` compiled main/test sources under Java 21 and passed the 28 pre-existing unit tests.
 - **Automated import checkpoint:** Maven test reports show all 36 unit tests passing (including the 8 new import tests) and all 5 MySQL integration tests passing, with no failures, errors, or skipped tests. The integration suite was verified against isolated MySQL 8.4.11; the contributor subsequently configured the local test database and ran the checkpoint.
 - **Contributor walkthrough completed (2026-10-21):** Aalvee Ahtav confirmed reviewing the conversion tests and import validation, running `mvn -Dtest=FileImporterStatsTest test`, creating the isolated MySQL database/user, configuring the ignored `db-test.properties`, running `mvn clean test`, `mvn -Pdb-tests verify`, and `git diff --check`, and launching the app with `mvn javafx:run` to verify the oversized-word error. This completes all six documented setup and verification steps locally.

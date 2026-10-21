@@ -16,6 +16,7 @@ import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
 import edu.sentencebuilder.model.WordPair;
+import edu.sentencebuilder.model.Word;
 import javafx.concurrent.Task;
 
 /**
@@ -25,9 +26,6 @@ import javafx.concurrent.Task;
  * and a Label to {@link #messageProperty()}.
  */
 public class FileImporter extends Task<Void> {
-
-    // Keep this aligned with word.text VARCHAR(100) in schema.sql.
-    static final int MAX_WORD_LENGTH = 100;
 
     /** A JDBC connection factory may throw SQLException, unlike Supplier<Connection>. */
     @FunctionalInterface
@@ -76,6 +74,9 @@ public class FileImporter extends Task<Void> {
             updateProgress(i + 1, totalSteps);
         }
 
+        // Reject bad input before announcing the save phase. The transaction entry point
+        // repeats this guard so direct callers receive the same protection.
+        validateWordLengths(stats);
         updateMessage("Saving to database...");
         // Save words, pairs, and file metadata together.
         writeToDatabase(stats, sentences.size());
@@ -123,13 +124,11 @@ public class FileImporter extends Task<Void> {
 
     static void validateWordLengths(Stats stats) {
         for (String word : stats.totals.keySet()) {
-            // MySQL VARCHAR length counts characters; UTF-16 length counts surrogate pairs twice.
-            int length = word.codePointCount(0, word.length());
-            if (length > MAX_WORD_LENGTH) {
-                String preview = word.substring(0, word.offsetByCodePoints(0, 30)) + "…";
-                throw new IllegalArgumentException("Word exceeds the " + MAX_WORD_LENGTH
-                        + "-character limit (" + length + " characters): \"" + preview
-                        + "\". No data was imported.");
+            try {
+                Word.validateTextLength(word);
+            } catch (IllegalArgumentException error) {
+                // Keep import context out of the shared model/DAO validation message.
+                throw new InvalidImportException(error.getMessage() + " No data was imported.", error);
             }
         }
     }
