@@ -5,3 +5,6 @@ target/
 db.properties
 .DS_Store
 samples/
+
+# Separate credentials for destructive integration-test fixtures.
+db-test.properties

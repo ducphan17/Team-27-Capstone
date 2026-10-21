@@ -8,6 +8,20 @@ import java.time.LocalDateTime;
  * Mutable so the Words Report tab can edit it.
  */
 public class Word {
+    // Shared by imports and direct DAO writes; keep aligned with word.text VARCHAR(100).
+    public static final int MAX_WORD_LENGTH = 100;
+
+    /** Reject oversized text consistently, including supplementary Unicode letters. */
+    public static void validateTextLength(String text) {
+        // MySQL counts characters, while String.length() counts UTF-16 code units.
+        int length = text.codePointCount(0, text.length());
+        if (length > MAX_WORD_LENGTH) {
+            String preview = text.substring(0, text.offsetByCodePoints(0, 30)) + "…";
+            throw new IllegalArgumentException("Word exceeds the " + MAX_WORD_LENGTH
+                    + "-character limit (" + length + " characters): \"" + preview + "\".");
+        }
+    }
+
     private int wordId;
     private String text;
     private int totalCount;

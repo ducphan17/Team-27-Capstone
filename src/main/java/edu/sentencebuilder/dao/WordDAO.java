@@ -61,6 +61,8 @@ public class WordDAO {
  * @throws DataAccessException if the insert or lookup fails
  */
 public int insertIfAbsent(String text) {
+    // Autocomplete bypasses the importer, so validate before opening its connection too.
+    Word.validateTextLength(text);
     String insertSql = """
             INSERT INTO word (text) VALUES (?) AS incoming
             ON DUPLICATE KEY UPDATE text = word.text
@@ -93,6 +95,8 @@ public int insertIfAbsent(String text) {
             Map<String, Integer> totals,
             Map<String, Integer> starts,
             Map<String, Integer> ends) throws SQLException {
+        // Check the complete batch before preparing or executing any writes.
+        totals.keySet().forEach(Word::validateTextLength);
         
         String sql = """
                 INSERT INTO word (text, total_count, start_count, end_count)
@@ -156,6 +160,7 @@ public int insertIfAbsent(String text) {
      * @throws DataAccessException if the update fails
      */
     public void update(Word word) {
+        Word.validateTextLength(word.getText());
         String sql = "UPDATE word SET text = ?, total_count = ?, start_count = ?, end_count = ? "
                 + "WHERE word_id = ?";
         try (Connection conn = Database.getConnection();
