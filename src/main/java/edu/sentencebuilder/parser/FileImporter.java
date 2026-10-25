@@ -15,8 +15,9 @@ import edu.sentencebuilder.dao.FileDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
-import edu.sentencebuilder.model.WordPair;
+import edu.sentencebuilder.model.ImportedWordCounts;
 import edu.sentencebuilder.model.Word;
+import edu.sentencebuilder.model.WordPair;
 import javafx.concurrent.Task;
 
 /**
@@ -83,47 +84,85 @@ public class FileImporter extends Task<Void> {
 
         updateProgress(totalSteps, totalSteps);
         updateMessage("Imported " + stats.wordCount + " words in " + sentences.size()
-                + " sentences (" + stats.totals.size() + " distinct)");
+                + " sentences (" + stats.words.size() + " distinct)");
         return null;
     }
 
-    // Package access lets tests exercise the same transaction as the UI without JavaFX startup.
+    //Aalvee
+    // Package access preserves the existing import tests.
     void writeToDatabase(Stats stats, int sentenceCount) throws SQLException {
-        // Validate the whole import before opening a connection: never truncate or partly save it.
+        // Reject oversized words before opening a database connection.
         validateWordLengths(stats);
-        // This method owns the shared connection and closes it when finished.
+
         try (Connection conn = connections.open()) {
             conn.setAutoCommit(false);
 
             try {
-                // Save words first so every pair can reference existing word IDs.
-                Map<String, Integer> wordIds = wordDAO.upsertCounts(
-                        conn, stats.totals, stats.starts, stats.ends);
-                // Resolve IDs before handing typed word-pair records to the DAO.
-                wordPairDAO.upsertCounts(conn, stats.toWordPairs(wordIds));
+                saveCounts(
+                        conn,
+                        stats,
+                        sentenceCount,
+                        file.getFileName().toString());
 
-                // Include the file record in the same transaction.
-                SourceFile sourceFile = new SourceFile(
-                        file.getFileName().toString(), stats.wordCount, sentenceCount);
-                fileDAO.insert(conn, sourceFile);
-
-                // Make the complete import permanent only after all saves succeed.
                 conn.commit();
             } catch (SQLException | RuntimeException error) {
                 try {
                     conn.rollback();
                 } catch (SQLException rollbackError) {
-                    // Preserve the original failure if rollback also fails.
                     error.addSuppressed(rollbackError);
                 }
-                // The task's failure handler displays this error in the Import tab.
+
                 throw error;
             }
         }
     }
 
+    /**
+     * Imports text using a transaction owned by the caller.
+     * Does not commit, roll back, or close the supplied connection.
+     */
+    public void importText(Connection conn, String text, String sourceName)
+            throws SQLException {
+
+        List<List<String>> sentences = tokenizer.tokenize(text);
+        Stats stats = new Stats();
+
+        for (List<String> sentence : sentences) {
+            stats.addSentence(sentence);
+        }
+
+        if (sentences.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "There are no words to add to the corpus.");
+        }
+
+        // Reuse the same validation as ordinary file imports.
+        validateWordLengths(stats);
+        saveCounts(conn, stats, sentences.size(), sourceName);
+    }
+
+    /** Shared persistence logic for file imports and generated text. */
+    private void saveCounts(
+            Connection conn,
+            Stats stats,
+            int sentenceCount,
+            String sourceName) throws SQLException {
+
+        // Save words first because word pairs need their database IDs.
+        Map<String, Integer> wordIds = wordDAO.upsertCounts(
+                conn, stats.toWordCounts());
+
+        wordPairDAO.upsertCounts(conn, stats.toWordPairs(wordIds));
+
+        // Record where these imported counts came from.
+        SourceFile source = new SourceFile(
+                sourceName, stats.wordCount, sentenceCount);
+
+        fileDAO.insert(conn, source);
+    }
+
     static void validateWordLengths(Stats stats) {
-        for (String word : stats.totals.keySet()) {
+        for (String word : stats.words.keySet()) {
             try {
                 Word.validateTextLength(word);
             } catch (IllegalArgumentException error) {
@@ -135,12 +174,29 @@ public class FileImporter extends Task<Void> {
 
     /** In-memory counts gathered from one import, keyed by word text. */
     static final class Stats {
-        final Map<String, Integer> totals = new HashMap<>();
-        final Map<String, Integer> starts = new HashMap<>();
-        final Map<String, Integer> ends = new HashMap<>();
+        // The map finds a word; its object keeps all three counts together.
+        final Map<String, WordCounts> words = new HashMap<>();
         /** Lookup table for counting repeated pairs: from-word → (to-word → count). */
         final Map<String, Map<String, Integer>> pairs = new HashMap<>();
         int wordCount;
+
+        // Mutable counters avoid allocating a replacement record for every occurrence.
+        private static final class WordCounts {
+            int totalCount;
+            int startCount;
+            int endCount;
+        }
+
+        // Snapshot the counters into immutable records for the DAO.
+        List<ImportedWordCounts> toWordCounts() {
+            List<ImportedWordCounts> result = new ArrayList<>(words.size());
+            for (Map.Entry<String, WordCounts> entry : words.entrySet()) {
+                WordCounts counts = entry.getValue();
+                result.add(new ImportedWordCounts(entry.getKey(), counts.totalCount,
+                        counts.startCount, counts.endCount));
+            }
+            return result;
+        }
 
         // Convert the counting lookups into records after the words have database IDs.
         List<WordPair> toWordPairs(Map<String, Integer> wordIds) throws SQLException {
@@ -166,10 +222,16 @@ public class FileImporter extends Task<Void> {
             if (words.isEmpty()) {
                 return;
             }
-            starts.merge(words.getFirst(), 1, Integer::sum);
-            ends.merge(words.getLast(), 1, Integer::sum);
             for (int i = 0; i < words.size(); i++) {
-                totals.merge(words.get(i), 1, Integer::sum);
+                WordCounts counts = this.words.computeIfAbsent(words.get(i), key -> new WordCounts());
+                counts.totalCount++;
+                // A single-word sentence contributes to both boundary counts.
+                if (i == 0) {
+                    counts.startCount++;
+                }
+                if (i == words.size() - 1) {
+                    counts.endCount++;
+                }
                 if (i + 1 < words.size()) {
                     pairs.computeIfAbsent(words.get(i), k -> new HashMap<>())
                             .merge(words.get(i + 1), 1, Integer::sum);

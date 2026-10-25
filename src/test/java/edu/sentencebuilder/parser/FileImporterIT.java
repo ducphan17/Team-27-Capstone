@@ -1,9 +1,12 @@
 package edu.sentencebuilder.parser;
 
 import edu.sentencebuilder.dao.FileDAO;
+import edu.sentencebuilder.dao.SentenceDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
+import edu.sentencebuilder.model.GeneratedSentence;
+import edu.sentencebuilder.model.Word;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -231,5 +234,166 @@ class FileImporterIT {
         assertTrue(error.getMessage().contains("100-character limit (101 characters)"));
         assertTrue(error.getMessage().contains("No data was imported."));
         assertEquals(before, snapshot());
+    }
+
+    @Test
+    void startingWordQueryExcludesWordsWithZeroStartCount() throws SQLException {
+        importText(CORPUS, new FileDAO());
+
+        try (Connection conn = open()) {
+            // The fixture contains two zero-start words and one starter, used twice.
+            List<Word> starters = new WordDAO().findStartingWords(conn);
+            assertEquals(List.of("zorvex"), starters.stream().map(Word::getText).toList());
+            assertEquals(2, starters.getFirst().getStartCount());
+            assertTrue(starters.getFirst().getWordId() > 0);
+            assertFalse(conn.isClosed(), "The caller still owns the connection");
+        }
+    }
+
+    @Test
+    void generatedSentencesSaveTextStartWordAndAlgorithm() throws SQLException {
+        List<Integer> ids = new ArrayList<>();
+        try (Connection conn = open()) {
+            for (String algorithm : List.of("Weighted random", "Most frequent")) {
+                GeneratedSentence sentence = new GeneratedSentence(
+                        "Zorvex miplex.", "zorvex", algorithm);
+                assertSame(sentence, new SentenceDAO().insert(conn, sentence));
+                assertTrue(sentence.getId() > 0, "The insert must populate its generated ID");
+                ids.add(sentence.getId());
+            }
+            assertNotEquals(ids.getFirst(), ids.getLast());
+            assertFalse(conn.isClosed());
+        }
+
+        // A fresh connection checks durable rows, rather than only the in-memory models.
+        try (Connection conn = open()) {
+            assertEquals(List.of(
+                    List.of("Zorvex miplex.", "zorvex", "Weighted random"),
+                    List.of("Zorvex miplex.", "zorvex", "Most frequent")), rows(conn,
+                    "SELECT sentence, start_word, algorithm FROM generated_sentence ORDER BY id"));
+            assertTrue(rows(conn,
+                    "SELECT id FROM generated_sentence WHERE added_to_corpus = TRUE").isEmpty());
+            assertTrue(rows(conn,
+                    "SELECT id FROM generated_sentence WHERE created_at IS NULL").isEmpty());
+        }
+    }
+
+    /** Exact corpus assertions shared by the text-import and commit tests. */
+    private static void assertTextCorpus(Connection conn) throws SQLException {
+        assertEquals(List.of(List.of("miplex", 1, 0, 1), List.of("talvex", 1, 0, 1),
+                List.of("zorvex", 2, 2, 0)), rows(conn,
+                "SELECT text, total_count, start_count, end_count FROM word ORDER BY text"));
+        assertEquals(List.of(List.of("zorvex", "miplex", 1, 0),
+                List.of("zorvex", "talvex", 1, 0)), rows(conn, """
+                SELECT f.text, t.text, p.count, p.user_count FROM word_pair p
+                JOIN word f ON p.from_word_id = f.word_id
+                JOIN word t ON p.to_word_id = t.word_id ORDER BY f.text, t.text
+                """));
+        assertEquals(List.of(List.of("batch-generated", 4, 2)), rows(conn,
+                "SELECT filename, word_count, sentence_count FROM source_file ORDER BY file_id"));
+    }
+
+    @Test
+    void textImportSavesCountsPairsAndSourceRecord() throws SQLException {
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            try {
+                // Exercise the public text entry point; no temporary file is read.
+                importer(new FileDAO()).importText(conn, CORPUS, "batch-generated");
+                assertFalse(conn.isClosed());
+                assertFalse(conn.getAutoCommit());
+                assertTextCorpus(conn);
+                conn.commit();
+            } finally {
+                conn.rollback();
+            }
+        }
+
+        try (Connection conn = open()) {
+            assertTextCorpus(conn);
+            assertTrue(rows(conn, "SELECT * FROM generated_sentence").isEmpty());
+        }
+    }
+
+    private static List<Integer> saveBatchSentences() throws SQLException {
+        try (Connection conn = open()) {
+            SentenceDAO sentences = new SentenceDAO();
+            GeneratedSentence first = sentences.insert(conn,
+                    new GeneratedSentence("Zorvex miplex.", "zorvex", "Weighted random"));
+            GeneratedSentence second = sentences.insert(conn,
+                    new GeneratedSentence("Zorvex talvex.", "zorvex", "Most frequent"));
+            // This unselected result must never be marked by the batch operation.
+            sentences.insert(conn,
+                    new GeneratedSentence("Unselected result.", "unselected", "Most frequent"));
+            return List.of(first.getId(), second.getId());
+        }
+    }
+
+    @Test
+    void textCountsAndSelectedSentenceFlagsCommitTogether() throws SQLException {
+        List<Integer> ids = saveBatchSentences();
+        var before = snapshot();
+
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            try {
+                importer(new FileDAO()).importText(conn, CORPUS, "batch-generated");
+                new SentenceDAO().markAddedToCorpus(conn, ids);
+
+                assertTextCorpus(conn);
+                assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
+                        "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
+                // Neither helper may commit: another connection must still see the baseline.
+                assertEquals(before, snapshot());
+                conn.commit();
+            } finally {
+                conn.rollback();
+            }
+        }
+
+        try (Connection conn = open()) {
+            assertTextCorpus(conn);
+            assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
+                    "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
+        }
+    }
+
+    private static void verifyTextAndFlagRollback(boolean failAfterMarking) throws SQLException {
+        seed();
+        List<Integer> ids = saveBatchSentences();
+        var before = snapshot();
+
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            try {
+                SQLException error = assertThrows(SQLException.class, () -> {
+                    importer(new FileDAO()).importText(conn,
+                            "Zorvex miplex. Freshword freshpair.", "batch-generated");
+                    if (failAfterMarking) {
+                        new SentenceDAO().markAddedToCorpus(conn, ids);
+                        assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
+                                "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
+                    }
+                    // Counts have been written; the caller has not committed yet.
+                    throw new SQLException("Intentional batch failure before commit");
+                });
+                assertEquals("Intentional batch failure before commit", error.getMessage());
+            } finally {
+                conn.rollback();
+            }
+        }
+
+        // Includes existing counts, user counts, IDs, timestamps, source rows, and flags.
+        assertEquals(before, snapshot());
+    }
+
+    @Test
+    void failureAfterTextImportRollsBackCountsAndLeavesFlagsUnchanged() throws SQLException {
+        verifyTextAndFlagRollback(false);
+    }
+
+    @Test
+    void failureAfterMarkingRollsBackBothCountsAndFlags() throws SQLException {
+        verifyTextAndFlagRollback(true);
     }
 }

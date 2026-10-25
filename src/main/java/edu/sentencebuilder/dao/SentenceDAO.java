@@ -1,15 +1,15 @@
 package edu.sentencebuilder.dao;
 
-import edu.sentencebuilder.model.GeneratedSentence;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-import java.sql.Timestamp;
+
+import edu.sentencebuilder.model.GeneratedSentence;
 
 /**
  * Reads and writes the {@code generated_sentence} table.
@@ -19,9 +19,15 @@ public class SentenceDAO {
 
     /** Saves a generated sentence and sets its generated {@code id}. */
     public GeneratedSentence insert(GeneratedSentence s) throws SQLException {
+        try (Connection conn = Database.getConnection()) {
+            return insert(conn, s);
+        }
+    }
+
+    /** Saves using the caller's connection without committing or closing it. */
+    public GeneratedSentence insert(Connection conn, GeneratedSentence s) throws SQLException {
         String sql = "INSERT INTO generated_sentence (sentence, start_word, algorithm, added_to_corpus) VALUES (?, ?, ?, ?)";
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, s.getSentence());
             ps.setString(2, s.getStartWord());
             ps.setString(3, s.getAlgorithm());
@@ -72,6 +78,7 @@ public class SentenceDAO {
         return s;
     }
 
+    //Aalvee
     /**
      * Marks the given sentences as added to the corpus (Batch Generate "Add to corpus").
      * Does nothing for a null or empty list.
@@ -83,16 +90,38 @@ public class SentenceDAO {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        String sql = "UPDATE generated_sentence SET added_to_corpus = TRUE WHERE id = ?";
-        try (Connection conn = Database.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (int id : ids) {
-                ps.setInt(1, id);
-                ps.addBatch();
-            }
-            ps.executeBatch();
+
+        try (Connection conn = Database.getConnection()){
+            markAddedToCorpus(conn, ids);
         } catch (SQLException e) {
             throw new DataAccessException("Could not mark sentences as added to corpus", e);
         }
     }
+
+    //Uses the caller's connection without committing or closing it.
+    //This lets corpus counts and sentence flags commit together.
+    public void markAddedToCorpus(Connection conn, List<Integer> ids)
+            throws SQLException {
+
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        String sql = """
+                UPDATE generated_sentence
+                SET added_to_corpus = TRUE
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int id : ids) {
+                ps.setInt(1, id);
+                ps.addBatch();
+            }
+
+            ps.executeBatch();
+        }
+    }
+
+
 }

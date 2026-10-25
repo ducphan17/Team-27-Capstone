@@ -1,13 +1,18 @@
 package edu.sentencebuilder.parser;
 
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Test;
+
 import edu.sentencebuilder.dao.FileDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
-import org.junit.jupiter.api.Test;
-
-import java.nio.file.Path;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class FileImporterValidationTest {
     // Use real tokenization and counting, as the background import does.
@@ -43,5 +48,30 @@ class FileImporterValidationTest {
         assertTrue(error.getMessage().contains("100-character limit (101 characters)"));
         assertTrue(error.getMessage().contains("No data was imported."));
         assertFalse(error.getMessage().contains("a".repeat(101)), "Keep the error preview short");
+    }
+
+    //Aalvee
+    @Test
+    void textImportRejectsOversizedWordsBeforeUsingTheConnection() {
+        WordDAO words = new WordDAO();
+        FileImporter importer = new FileImporter(Path.of("unused.txt"), new Tokenizer(),
+                words, new WordPairDAO(words), new FileDAO());
+
+        // A null connection ensures validation happens before any database access.
+        InvalidImportException error = assertThrows(InvalidImportException.class,
+                () -> importer.importText(null,
+                        "Ordinary words. " + "a".repeat(101) + ".", "batch-generated"));
+        assertTrue(error.getMessage().contains("No data was imported."));
+    }
+
+    @Test
+    void textImportRejectsInputWithoutWords() {
+        WordDAO words = new WordDAO();
+        FileImporter importer = new FileImporter(Path.of("unused.txt"), new Tokenizer(),
+                words, new WordPairDAO(words), new FileDAO());
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> importer.importText(null, "... ! ?", "batch-generated"));
+        assertEquals("There are no words to add to the corpus.", error.getMessage());
     }
 }
