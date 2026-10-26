@@ -3,7 +3,6 @@
 package edu.sentencebuilder.ui;
 
 import edu.sentencebuilder.dao.Database;
-import edu.sentencebuilder.dao.FileDAO;
 import edu.sentencebuilder.dao.SentenceDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
@@ -13,8 +12,7 @@ import edu.sentencebuilder.generator.StartingWordPicker;
 import edu.sentencebuilder.generator.WeightedRandomGenerator;
 import edu.sentencebuilder.model.GeneratedSentence;
 import edu.sentencebuilder.model.Word;
-import edu.sentencebuilder.parser.FileImporter;
-import edu.sentencebuilder.parser.Tokenizer;
+import edu.sentencebuilder.parser.CorpusService;
 
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -26,7 +24,6 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.util.StringConverter;
 
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -161,37 +158,34 @@ public class BatchGenerateController {
                 });
     }
 
-    /** Runs entirely on a worker thread. */
-    private BatchResult generateBatch(int count, String algorithm) {
+    /** Runs entirely on a worker thread. Setup errors go to the task failure handler. */
+    private BatchResult generateBatch(int count, String algorithm) throws SQLException {
+        WordDAO words = new WordDAO();
+        List<Word> starters = words.findStartingWords();
+        if (starters.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "No starting words available. Import some text first.");
+        }
+
+        WordPairDAO source = new WordPairDAO(words);
+        SentenceDAO sentences = new SentenceDAO();
+        Random random = new Random();
+        SentenceGenerator generator = "Most frequent".equals(algorithm)
+                ? new MostFrequentGenerator(source)
+                : new WeightedRandomGenerator(source);
         List<GeneratedSentence> saved = new ArrayList<>();
 
-        try {
-            WordDAO words = new WordDAO();
-            WordPairDAO source = new WordPairDAO(words);
-            SentenceDAO sentences = new SentenceDAO();
-
-            List<Word> starters = words.findStartingWords();
-            Random random = new Random();
-
-            SentenceGenerator generator =
-                    "Most frequent".equals(algorithm)
-                            ? new MostFrequentGenerator(source)
-                            : new WeightedRandomGenerator(source);
-
+        // Reuse one save connection. Autocommit preserves earlier successful inserts.
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(true);
             for (int i = 0; i < count; i++) {
-                String startWord =
-                        StartingWordPicker.pick(starters, random);
-
+                String startWord = StartingWordPicker.pick(starters, random);
                 String text = generator.generate(startWord);
-
                 GeneratedSentence sentence = new GeneratedSentence(
                         text, startWord, generator.getName());
-
-                // insert() sets the generated database ID on the model.
-                sentences.insert(sentence);
+                sentences.insert(conn, sentence);
                 saved.add(sentence);
             }
-
             return new BatchResult(saved, null);
         } catch (Exception error) {
             return new BatchResult(saved, error);
@@ -233,7 +227,7 @@ public class BatchGenerateController {
         Background.run(
                 "batch-add-to-corpus",
                 () -> {
-                    addToCorpus(text, ids);
+                    new CorpusService().addToCorpus(text, ids);
                     return selected.size();
                 },
                 addedCount -> {
@@ -252,39 +246,6 @@ public class BatchGenerateController {
                             "Could not add to corpus: "
                                     + Background.describe(error));
                 });
-    }
-
-    /** Imports counts and marks rows in one database transaction. */
-    private void addToCorpus(String text, List<Integer> ids)
-            throws SQLException {
-
-        WordDAO words = new WordDAO();
-
-        // The Path is a source label; importText() does not read a file.
-        FileImporter importer = new FileImporter(
-                Path.of("batch-generated"),
-                new Tokenizer(),
-                words,
-                new WordPairDAO(words),
-                new FileDAO());
-
-        try (Connection conn = Database.getConnection()) {
-            conn.setAutoCommit(false);
-
-            try {
-                importer.importText(conn, text, "batch-generated");
-                new SentenceDAO().markAddedToCorpus(conn, ids);
-                conn.commit();
-            } catch (SQLException | RuntimeException error) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackError) {
-                    error.addSuppressed(rollbackError);
-                }
-
-                throw error;
-            }
-        }
     }
 
     private void setBusy(boolean value) {

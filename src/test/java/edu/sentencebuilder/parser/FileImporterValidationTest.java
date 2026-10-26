@@ -16,23 +16,23 @@ import edu.sentencebuilder.dao.WordPairDAO;
 
 class FileImporterValidationTest {
     // Use real tokenization and counting, as the background import does.
-    static FileImporter.Stats count(String text) {
-        FileImporter.Stats stats = new FileImporter.Stats();
+    static TextImporter.Stats count(String text) {
+        TextImporter.Stats stats = new TextImporter.Stats();
         new Tokenizer().tokenize(text).forEach(stats::addSentence);
         return stats;
     }
 
     @Test
     void acceptsExactlyOneHundredCharacters() {
-        assertDoesNotThrow(() -> FileImporter.validateWordLengths(count("a".repeat(100))));
+        assertDoesNotThrow(() -> TextImporter.validateWordLengths(count("a".repeat(100))));
     }
 
     @Test
     void countsSupplementaryUnicodeLettersAsSingleCharacters() {
         String letter = new String(Character.toChars(0x10428));
-        assertDoesNotThrow(() -> FileImporter.validateWordLengths(count(letter.repeat(100))));
+        assertDoesNotThrow(() -> TextImporter.validateWordLengths(count(letter.repeat(100))));
         assertThrows(InvalidImportException.class,
-                () -> FileImporter.validateWordLengths(count(letter.repeat(101))));
+                () -> TextImporter.validateWordLengths(count(letter.repeat(101))));
     }
 
     @Test
@@ -70,7 +70,7 @@ class FileImporterValidationTest {
         FileImporter importer = new FileImporter(Path.of("unused.txt"), new Tokenizer(),
                 words, new WordPairDAO(words), new FileDAO());
 
-        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        InvalidImportException error = assertThrows(InvalidImportException.class,
                 () -> importer.importText(null, "... ! ?", "batch-generated"));
         assertEquals("There are no words to add to the corpus.", error.getMessage());
     }

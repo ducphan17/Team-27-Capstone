@@ -103,7 +103,7 @@ class FileImporterIT {
 
     private static void importText(String text, FileDAO files) throws SQLException {
         List<List<String>> sentences = new Tokenizer().tokenize(text);
-        FileImporter.Stats stats = new FileImporter.Stats();
+        TextImporter.Stats stats = new TextImporter.Stats();
         sentences.forEach(stats::addSentence);
         // Same validation + transaction entry point used by FileImporter.call().
         importer(files).writeToDatabase(stats, sentences.size());
@@ -299,7 +299,7 @@ class FileImporterIT {
             conn.setAutoCommit(false);
             try {
                 // Exercise the public text entry point; no temporary file is read.
-                importer(new FileDAO()).importText(conn, CORPUS, "batch-generated");
+                new TextImporter().importText(conn, CORPUS, "batch-generated");
                 assertFalse(conn.isClosed());
                 assertFalse(conn.getAutoCommit());
                 assertTextCorpus(conn);
@@ -334,22 +334,20 @@ class FileImporterIT {
         List<Integer> ids = saveBatchSentences();
         var before = snapshot();
 
-        try (Connection conn = open()) {
-            conn.setAutoCommit(false);
-            try {
-                importer(new FileDAO()).importText(conn, CORPUS, "batch-generated");
-                new SentenceDAO().markAddedToCorpus(conn, ids);
-
+        SentenceDAO observingSentences = new SentenceDAO() {
+            @Override
+            public void markAddedToCorpus(Connection conn, List<Integer> selectedIds)
+                    throws SQLException {
+                super.markAddedToCorpus(conn, selectedIds);
                 assertTextCorpus(conn);
                 assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
                         "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
-                // Neither helper may commit: another connection must still see the baseline.
+                // The real service must keep both sets of writes private until its commit.
                 assertEquals(before, snapshot());
-                conn.commit();
-            } finally {
-                conn.rollback();
             }
-        }
+        };
+        new CorpusService(FileImporterIT::open, new TextImporter(), observingSentences)
+                .addToCorpus(CORPUS, ids);
 
         try (Connection conn = open()) {
             assertTextCorpus(conn);
@@ -363,24 +361,34 @@ class FileImporterIT {
         List<Integer> ids = saveBatchSentences();
         var before = snapshot();
 
-        try (Connection conn = open()) {
-            conn.setAutoCommit(false);
-            try {
-                SQLException error = assertThrows(SQLException.class, () -> {
-                    importer(new FileDAO()).importText(conn,
-                            "Zorvex miplex. Freshword freshpair.", "batch-generated");
-                    if (failAfterMarking) {
-                        new SentenceDAO().markAddedToCorpus(conn, ids);
-                        assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
-                                "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
-                    }
-                    // Counts have been written; the caller has not committed yet.
-                    throw new SQLException("Intentional batch failure before commit");
-                });
-                assertEquals("Intentional batch failure before commit", error.getMessage());
-            } finally {
-                conn.rollback();
+        SentenceDAO failingSentences = new SentenceDAO() {
+            @Override
+            public void markAddedToCorpus(Connection conn, List<Integer> selectedIds)
+                    throws SQLException {
+                // Reaching this DAO proves the service has already imported the text.
+                assertEquals(List.of(List.of("freshpair"), List.of("freshword")), rows(conn,
+                        "SELECT text FROM word WHERE text LIKE 'fresh%' ORDER BY text"));
+                assertEquals(before, snapshot(), "Import must still be uncommitted");
+                if (failAfterMarking) {
+                    super.markAddedToCorpus(conn, selectedIds);
+                    assertEquals(List.of(List.of("Zorvex miplex."), List.of("Zorvex talvex.")), rows(conn,
+                            "SELECT sentence FROM generated_sentence WHERE added_to_corpus = TRUE ORDER BY id"));
+                    throw new IllegalStateException("Intentional batch failure after marking");
+                }
+                throw new SQLException("Intentional batch failure before marking");
             }
+        };
+        CorpusService service = new CorpusService(
+                FileImporterIT::open, new TextImporter(), failingSentences);
+        String text = "Zorvex miplex. Freshword freshpair.";
+        if (failAfterMarking) {
+            IllegalStateException error = assertThrows(IllegalStateException.class,
+                    () -> service.addToCorpus(text, ids));
+            assertEquals("Intentional batch failure after marking", error.getMessage());
+        } else {
+            SQLException error = assertThrows(SQLException.class,
+                    () -> service.addToCorpus(text, ids));
+            assertEquals("Intentional batch failure before marking", error.getMessage());
         }
 
         // Includes existing counts, user counts, IDs, timestamps, source rows, and flags.
