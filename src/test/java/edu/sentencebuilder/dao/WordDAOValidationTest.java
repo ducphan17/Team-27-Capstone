@@ -1,9 +1,10 @@
 package edu.sentencebuilder.dao;
 
 import edu.sentencebuilder.model.Word;
+import edu.sentencebuilder.model.ImportedWordCounts;
 import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,7 +23,8 @@ class WordDAOValidationTest {
         // A null connection makes this independent of local database configuration:
         // validation must finish before even preparing the batch statement.
         assertThrows(IllegalArgumentException.class, () -> words.upsertCounts(null,
-                Map.of("valid", 1, "a".repeat(101), 1), Map.of(), Map.of()));
+                List.of(new ImportedWordCounts("valid", 1, 0, 0),
+                        new ImportedWordCounts("a".repeat(101), 1, 0, 0))));
     }
 
     @Test

@@ -4,8 +4,8 @@ A statistical "auto-complete on steroids": imports text files, stores word and
 word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
-> Work in progress: importing, the Generate tab, Words Report, and Sentence History work;
-> Batch Generate and Autocomplete are still being built.
+> Importing, Generate, Batch Generate, Words Report, and Sentence History work.
+> Autocomplete is the next checkpoint.
 > See [What works vs. what's left](#what-works-vs-whats-left).
 
 ## Setup
@@ -142,7 +142,7 @@ character counting, and rejection before a connection opens:
 mvn -Dtest=FileImporterStatsTest,FileImporterValidationTest test
 ```
 
-`FileImporter.call` validates every distinct, normalized word immediately after
+`FileImporter.call` uses shared `TextImporter` validation for every distinct, normalized word immediately after
 counting, before announcing "Saving to database...". `writeToDatabase` repeats
 validation before opening a connection, protecting direct callers too.
 The limit is 100 Unicode code points, matching `word.text VARCHAR(100)`.
@@ -235,7 +235,7 @@ Plain `mvn test` runs unit tests only. The `db-tests` Maven profile adds Failsaf
 which runs `FileImporterIT` during `verify`. Results are in
 `target/surefire-reports` and `target/failsafe-reports`.
 
-The five MySQL integration tests check:
+The 11 MySQL integration tests check:
 
 * Importing `Zorvex miplex. Zorvex talvex.` twice preserves word IDs and
   `first_seen`, doubles imported counts, creates two file records, and preserves
@@ -246,6 +246,18 @@ The five MySQL integration tests check:
 * A 100-character word saves successfully.
 * Valid words followed by a 101-character word produce the expected error and
   leave all stored rows unchanged.
+* `findStartingWords` includes positive start counts and excludes zero counts.
+* Generated sentences retain their IDs, text, start word, algorithm, timestamp,
+  and initial corpus flag.
+* Direct text import saves total/start/end counts, pairs, and source metadata.
+* The same `CorpusService.addToCorpus` used by the UI commits imported counts and
+  selected sentence flags together; unselected rows remain unmarked. A fresh
+  connection sees no changes before the service commits.
+* An SQL failure after text import but before marking rolls back all changes.
+* A runtime failure after marking rolls back both corpus counts and flags.
+
+The last three checks call the production service with guarded test connections
+and injected DAO failures; they do not copy its transaction implementation.
 
 Rollback checks compare stored rows, not auto-increment counters; failed
 transactions may leave ID gaps.
@@ -273,16 +285,17 @@ Import failed: Word exceeds the 100-character limit (101 characters): "aaaa…".
 The actual preview contains the first 30 characters. The Choose File button must
 be enabled again. The automated tests verify unchanged database contents through
 the same validation/transaction method the UI calls; this last check verifies the
-visible JavaFX message. Stop here before Autocomplete or Batch Generate.
+visible JavaFX message. Import and Batch Generate are implemented; Autocomplete
+is the next checkpoint.
 
 ## Project layout
 
 ```
 src/main/java/edu/sentencebuilder/
-  model/      Word, WordPair, SourceFile, GeneratedSentence
+  model/      Word, WordPair, SourceFile, GeneratedSentence, ImportedWordCounts
   dao/        Database (connections), WordDAO, WordPairDAO, FileDAO, SentenceDAO, DataAccessException
-  parser/     Tokenizer, FileImporter (javafx.concurrent.Task)
-  generator/  WordStatsSource, Follower, SentenceGenerator, WeightedRandomGenerator, MostFrequentGenerator
+  parser/     Tokenizer, FileImporter (javafx.concurrent.Task), TextImporter, CorpusService, InvalidImportException
+  generator/  WordStatsSource, Follower, SentenceGenerator, WeightedRandomGenerator, MostFrequentGenerator, StartingWordPicker
   ui/         MainApp, Launcher, one controller per tab
 src/main/resources/
   schema.sql
@@ -295,39 +308,39 @@ src/main/resources/
 
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
-* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file, counts totals/starts/ends/pairs in HashMaps, reports progress, then saves words, word pairs, and the `source_file` record in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
-* **Word DAO:** `findByText`, `findAll`, `insertIfAbsent`, `upsertCounts`, `update`.
+* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
+* **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent`, `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
 * **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount`.
 * **File DAO:** `insert`, `findAll`.
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer` first version.
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
+* **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 42 unit tests covering shared word and DAO validation (6), import pair conversion and word-length validation (8), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), Words Report filtering/validation (6), and Sentence History duplicate counting (4), and Max words parsing (3). All use in-memory data, no database.
+* 52 unit tests covering shared word and DAO validation (6), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
 
 **Verification status**
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
-* `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount`, `FileDAO.findAll`, and `SentenceDAO.markAddedToCorpus` are implemented but not yet checked against MySQL.
-* Automated MySQL import integration tests exercise the import DAO writes in an isolated test database; see the configuration and commands above. Other DAO methods still need their own database coverage.
+* `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount`, and `FileDAO.findAll` are implemented but not yet checked against MySQL.
+* The 11 automated MySQL integration tests cover import persistence, `WordDAO.findStartingWords`, sentence inserts, and `SentenceDAO.markAddedToCorpus` through the production corpus service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
 
 **Still to do**
 
 | Tab | DAO work needed | Tab work needed |
 |---|---|---|
-| Batch Generate | new `WordDAO` query for words with `start_count > 0` | start words weighted by `start_count`; "Add to corpus" needs `FileImporter` to accept text, not only a `Path`; then `SentenceDAO.markAddedToCorpus` |
 | Autocomplete | none (uses `insertIfAbsent`, `incrementUserCount`) | top followers after space/comma/period; record choices; ignore stale lookups |
 
 Also open:
 * `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 
-Suggested order: complete the import checkpoint above → Batch Generate → Autocomplete → Tokenizer edge cases.
+Next: Autocomplete → Tokenizer edge cases. Import and Batch Generate are implemented.
 
 ## Design notes
 
@@ -336,7 +349,8 @@ Suggested order: complete the import checkpoint above → Batch Generate → Aut
 * **`DataAccessException`.** `WordStatsSource` methods can't throw `SQLException`, so DAO code wraps it in this unchecked exception; it surfaces through the Task's `onFailed`. The `findAll`, `insertIfAbsent`, `update`, `incrementUserCount`, and `markAddedToCorpus` methods follow this convention. `findByText`, `FileDAO.insert`, `SentenceDAO.insert`, and the importer's `upsertCounts` methods still declare `throws SQLException`.
 * **Transactional import.** `WordDAO.upsertCounts`, `WordPairDAO.upsertCounts`, and `FileDAO.insert` take the importer's `Connection` instead of opening their own, so one import commits or rolls back as a unit. Words are saved before pairs because pairs need word IDs.
 * **Injected `Random`.** Generators accept a `Random` so tests can seed it and get repeatable results.
-* **Counting before writing.** `FileImporter` aggregates the whole file in memory first, so the DB sees one upsert per distinct word/pair instead of one per occurrence.
+* **Counting before writing.** Shared `TextImporter.Stats` aggregates input in memory with one mutable counter object per word, then produces immutable `ImportedWordCounts` records. The database sees one upsert per distinct word/pair instead of one per occurrence.
+* **Corpus feedback.** `CorpusService` owns the Add selected transaction and takes an injectable connection factory. The controller and integration tests call this same service. `TextImporter` handles text without constructing a JavaFX task or a placeholder file path.
 * **Row-alias upserts.** Upserts use `INSERT ... AS incoming ON DUPLICATE KEY UPDATE x = x + incoming.x`; the older `VALUES(x)` form is deprecated in MySQL 8.0.20+.
 * **`insertIfAbsent` uses a no-op update.** It relies on `ON DUPLICATE KEY UPDATE text = word.text` rather than `INSERT IGNORE`, so existing rows and `first_seen` stay untouched and unrelated errors are not silently swallowed.
 * **`utf8mb4_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates. Because the collation is binary, `ORDER BY text` sorts uppercase before lowercase, which does not matter since the tokenizer lowercases everything.

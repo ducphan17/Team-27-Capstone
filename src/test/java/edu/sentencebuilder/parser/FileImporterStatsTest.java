@@ -1,6 +1,7 @@
 package edu.sentencebuilder.parser;
 
 import edu.sentencebuilder.model.WordPair;
+import edu.sentencebuilder.model.ImportedWordCounts;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
@@ -13,8 +14,35 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class FileImporterStatsTest {
     @Test
+    void repeatedWordCountsBoundariesOncePerSentenceAndSnapshotsStayUnchanged() {
+        TextImporter.Stats stats = new TextImporter.Stats();
+        stats.addSentence(List.of("echo", "echo", "echo"));
+        List<ImportedWordCounts> snapshot = stats.toWordCounts();
+        stats.addSentence(List.of());
+        stats.addSentence(List.of("echo"));
+
+        assertEquals(List.of(new ImportedWordCounts("echo", 3, 1, 1)), snapshot);
+        assertEquals(List.of(new ImportedWordCounts("echo", 4, 2, 2)), stats.toWordCounts());
+        assertEquals(4, stats.wordCount);
+    }
+
+    @Test
+    void wordRecordsPreserveTotalsAndSentenceBoundaries() {
+        TextImporter.Stats stats = new TextImporter.Stats();
+        stats.addSentence(List.of("hello", "middle", "end"));
+        stats.addSentence(List.of("hello"));
+
+        assertEquals(3, stats.toWordCounts().size());
+        assertEquals(Set.of(new ImportedWordCounts("hello", 2, 2, 1),
+                        new ImportedWordCounts("middle", 1, 0, 0),
+                        new ImportedWordCounts("end", 1, 0, 1)),
+                Set.copyOf(stats.toWordCounts()));
+        assertTrue(new TextImporter.Stats().toWordCounts().isEmpty());
+    }
+
+    @Test
     void resolvesIdsAndAggregatesRepeatedPairs() throws SQLException {
-        FileImporter.Stats stats = new FileImporter.Stats();
+        TextImporter.Stats stats = new TextImporter.Stats();
         stats.addSentence(List.of("zorvex", "miplex"));
         stats.addSentence(List.of("zorvex", "miplex"));
         stats.addSentence(List.of("zorvex", "talvex"));
@@ -29,19 +57,19 @@ class FileImporterStatsTest {
 
     @Test
     void emptyStatisticsHaveNoPairs() throws SQLException {
-        assertTrue(new FileImporter.Stats().toWordPairs(Map.of()).isEmpty());
+        assertTrue(new TextImporter.Stats().toWordPairs(Map.of()).isEmpty());
     }
 
     @Test
     void singleWordSentenceNeedsNoPairIds() throws SQLException {
-        FileImporter.Stats stats = new FileImporter.Stats();
+        TextImporter.Stats stats = new TextImporter.Stats();
         stats.addSentence(List.of("alone"));
         assertTrue(stats.toWordPairs(Map.of()).isEmpty());
     }
 
     @Test
     void missingSourceIdNamesTheWord() {
-        FileImporter.Stats stats = new FileImporter.Stats();
+        TextImporter.Stats stats = new TextImporter.Stats();
         stats.addSentence(List.of("zorvex", "miplex"));
         SQLException error = assertThrows(SQLException.class,
                 () -> stats.toWordPairs(Map.of("miplex", 42)));
@@ -50,7 +78,7 @@ class FileImporterStatsTest {
 
     @Test
     void missingDestinationIdNamesTheWord() {
-        FileImporter.Stats stats = new FileImporter.Stats();
+        TextImporter.Stats stats = new TextImporter.Stats();
         stats.addSentence(List.of("zorvex", "miplex"));
         SQLException error = assertThrows(SQLException.class,
                 () -> stats.toWordPairs(Map.of("zorvex", 17)));

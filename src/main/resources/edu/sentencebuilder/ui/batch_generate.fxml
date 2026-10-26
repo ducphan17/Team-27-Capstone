@@ -16,9 +16,27 @@
         <Label text="Number of sentences:"/>
         <Spinner fx:id="countSpinner" editable="true" min="1" max="1000" initialValue="10"/>
         <Label text="Algorithm:"/>
+
         <ComboBox fx:id="algorithmBox"/>
-        <Button text="Generate" onAction="#onGenerate"/>
+
+        <Button
+            fx:id="generateButton"
+            text="Generate"
+            onAction="#onGenerate"
+        />
     </HBox>
     <ListView fx:id="sentenceList" VBox.vgrow="ALWAYS"/>
-    <Button fx:id="addToCorpusButton" text="Add to corpus" disable="true" onAction="#onAddToCorpus"/>
+    <!-- Only selected rows that have not already been imported are eligible. -->
+    <Button
+        fx:id="addToCorpusButton"
+        text="Add selected to corpus"
+        disable="true"
+        onAction="#onAddToCorpus"
+    />
+
+    <Label
+        fx:id="statusLabel"
+        text="Generate a batch, then select sentences to add."
+        wrapText="true"
+    />
 </VBox>

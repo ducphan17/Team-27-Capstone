@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.7**
+Current version: **1.8**
 
 ## Instructions for future updates
 
@@ -30,6 +30,39 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.8 — 2026-10-25
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Batch Generate, saving generated results, adding selected sentences to the corpus, and typed word-count records.
+
+### Changes
+
+- **`WordDAO.java`:** Added `findStartingWords()` to load words with `start_count > 0`, ordered by text. Added a connection-taking overload so isolated integration tests exercise the same query without application credentials; the existing application-facing method opens and closes its own connection.
+- **`StartingWordPicker.java` (new):** Chooses starting words randomly, weighted by `start_count`. Zero-count words receive no tickets, an empty eligible set raises a readable import-first error, and a `long` total supports combined weights above `Integer.MAX_VALUE`.
+- **`BatchGenerateController.java`:** Replaced the placeholder with background generation and saving for 1–1000 sentences using Weighted random or Most frequent. Both algorithms use weighted random starting words and the generator's default 20-word limit. One autocommit connection is reused for sentence inserts, preserving partial saves without opening a new save connection per sentence. Empty starting-word results raise an import-first error through the task failure handler before the generation loop. Each sentence is saved with its start word and algorithm; list items retain the saved model and database ID. Successfully saved results remain visible with a partial-success message if a later generation or insert fails.
+- **Batch controls and selection:** Validates the editable count spinner's text directly, uses a lenient converter, and disables controls while work runs. Supports multiple selection and enables **Add selected to corpus** only when the selection contains a sentence not already marked as added in the current list. Successful additions show `[Added to corpus]`; later additions skip those rows. Different generated rows with identical sentence text remain separate results.
+- **`batch_generate.fxml`:** Added the Generate button ID and status label required by the controller, and renamed the corpus button to **Add selected to corpus**.
+- **`FileImporter.java` / `TextImporter.java`:** Extracted JavaFX-independent counting, validation, text import, and shared `saveCounts()` persistence into `TextImporter`. The file task delegates persistence and its public `importText(Connection, String, String)` entry point to this shared importer; corpus feedback uses it directly without constructing a task or placeholder path. One `Map<String, WordCounts>` groups mutable total/start/end counters, and `toWordCounts()` produces immutable snapshots for persistence. Distinct-word reporting and validation use the combined map. Text imports reject wordless input with `InvalidImportException`, retain v1.7's word-length checks, and leave transaction ownership with the caller. Ordinary file imports retain their transaction and validation before the save-phase message. Comments explain lookups, counters, snapshots, and single-word sentence boundaries.
+- **`CorpusService.java` (new):** Moved the complete Add selected transaction out of the controller into a non-UI service with an injectable connection factory. Both the controller and integration tests call `addToCorpus`. Selected sentence text is imported with source name `batch-generated`. Counts, pair statistics, the source record, and `added_to_corpus` flags commit together on one connection; SQL/runtime errors roll back the transaction. Visible flags change only after commit succeeds. Corpus additions increase the existing word statistics shown in Words Report; they do not create a separate added-words list.
+- **`SentenceDAO.java`:** Added `markAddedToCorpus(Connection, List<Integer>)` for the shared import transaction and `insert(Connection, GeneratedSentence)` for isolated persistence checks. Both leave the supplied connection open and do not commit. Existing convenience methods delegate through their own connections.
+- **Unit tests:** Added `StartingWordPickerTest` (4 tests) for exact ticket boundaries at weights 3/1, zero-count exclusion, empty input, and totals above the integer range; added `BatchGenerateControllerTest` (2 tests) for valid/invalid count text. Extended `FileImporterValidationTest` with 2 tests for oversized and wordless text rejected before using a connection. Together with the 2 word-count tests below, the suite now contains 52 unit tests, up from 42 in v1.7.
+- **`FileImporterIT.java`:** Added 6 MySQL integration tests, bringing the suite to 11. The commit and rollback tests call the production `CorpusService` with injected DAO failures instead of copying the controller transaction. New coverage checks eligible starting words, generated IDs and saved sentence fields for both algorithm labels, text-import counts/pairs/source metadata, atomic count-and-flag commit, rollback after text import, and rollback after flags are marked. Fresh connections verify committed state and complete rollback snapshots; unselected sentences remain unmarked. All tests retain the dedicated test-user/database guards and never use application settings.
+- Added code comments explaining weighted tickets, connection ownership, selection snapshots, partial batch results, and transaction boundaries.
+- **`ImportedWordCounts.java` (new) / `WordDAO.java`:** Added an immutable record containing word text and total/start/end counts. `upsertCounts` now accepts `List<ImportedWordCounts>` instead of three separate maps, keeping each word's related data together in a typed DAO input. Full-batch word-length validation still runs before database writes, and the returned word-to-ID map remains a lookup for resolving pairs.
+- **Word-count tests:** Updated `WordDAOValidationTest` for the object-based input and added 2 `FileImporterStatsTest` cases covering aggregated totals, zero boundary counts, empty input, repeated words, single-word sentences, and snapshots remaining unchanged after further counting. The unit suite now contains 52 tests.
+
+- **`README.md`:** Updated implemented features, the 52-test unit breakdown, all 11 integration checks, shared typed counting, project layout, and verified DAO coverage. Removed completed Batch Generate work from the remaining-work table and made Autocomplete the next checkpoint.
+
+### Verification
+
+- **PR review verification:** Ran `mvn -Pdb-tests verify` after the word-count refactor and service extraction: all 52 unit tests and 11 MySQL integration tests passed, with zero failures, errors, or skipped tests. The integration suite uses the guarded disposable test database and exercises the actual corpus service's commit, SQL-failure rollback, and runtime-failure rollback paths.
+- **Running application:** Contributor screenshots show 10 generated and saved sentences for each algorithm. Sentence History displays the batch results with their algorithm labels, newest-first ordering, duplicate counts, and highlighted repeated sentences. The Add selected button is disabled when nothing is selected.
+- **Corpus addition walkthrough:** After following the selection/addition and Words Report walkthrough, the contributor confirmed it works. The walkthrough checks the success message and `[Added to corpus]` marker, then verifies that adding one `Zorvex talvex.` result increases `zorvex` total/start counts and `talvex` total/end counts by one.
+- `git diff --check`: passes.
+- **Remaining manual checks:** Invalid count input, database failure messages/control recovery, partial generation failure, and preventing another addition of an already-marked result have not been explicitly confirmed in the running app. Automated coverage tests count parsing and database transactions, but does not drive these JavaFX interactions.
+- **Next checkpoint:** Autocomplete. Tokenizer edge cases and DAO methods outside this checkpoint remain separate work.
 
 ## Version 1.7 — 2026-10-20
 
