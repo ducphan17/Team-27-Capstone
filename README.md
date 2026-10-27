@@ -323,7 +323,7 @@ src/main/resources/
 * **File DAO:** `insert`, `findAll` (also with a caller-owned connection).
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
-* `Tokenizer` first version.
+* `Tokenizer`: keeps contractions, hyphenated compounds, and decimal numbers intact; strips standalone punctuation. `!` and `?` always end sentences, and periods between digits stay inside numbers.
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
 * **Autocomplete tab:**
@@ -331,12 +331,12 @@ src/main/resources/
   * *Saving:* a sentence is saved when it ends with `.`, `!`, or `?`; Enter adds a period and keeps the text, so typing on starts a new sentence. Saving uses the text at that moment, so corrected typos are never stored and picked words count once. `AutocompleteService.recordSentences` saves in one transaction: unknown words get zero counts and `word_pair.user_count` goes up by 1 per neighboring pair. Pairs continue across commas, never across sentence ends; imported counts never change.
   * *Saved once:* sentences are compared by their words, so deleting, changing, or retyping an end mark, or editing another sentence, never re-saves an unchanged sentence. A sentence that continues a saved one (Enter, then the period deleted and more typed) saves only the new pairs, and a shortened one saves nothing; any other edit, or the same sentence typed again, counts as new.
   * *Failed saves:* retried in their own transaction (never blocking new sentences) every 10 seconds for up to 3 attempts, and whenever Enter is pressed. The save thread keeps every unconfirmed sentence in `autocomplete-pending.txt` (git-ignored) before and after each attempt, the app waits up to 5 seconds on close for a running save, and pending sentences are saved on the next start. A commit followed by a close failure counts as saved, so retries never count twice. Words over 100 characters are rejected with a message.
-  * *Known behavior:* clearing the field and retyping a sentence counts it again. Autocomplete uses the importer's `Tokenizer`, so `Mr.` or `3.5` ends a sentence (see Tokenizer edge cases below).
+  * *Known behavior:* clearing the field and retyping a sentence counts it again. Autocomplete shares the importer's sentence boundaries, so `3.5` stays one word; a trailing period after a digit waits for another character or Enter to distinguish a sentence end from a decimal point. Abbreviations such as `Mr.` still end a sentence (see Tokenizer edge cases below).
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 90 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (10), Autocomplete save-once and retry rules (20), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
+* 103 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (13), Autocomplete save-once and retry rules (21), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (17), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
 
 **Verification status**
 
@@ -348,7 +348,8 @@ src/main/resources/
 
 **Still to do**
 
-* An import-history view (optional). `FileDAO.findAll` is already implemented and verified against MySQL, but no tab uses it yet.
+* `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
+* Tokenizer edge cases (abbreviations, em-dashes, quotes after periods, broader number formats, ellipses).
 
 Next: Tokenizer edge cases. Every tab is implemented.
 

@@ -2,28 +2,41 @@ package edu.sentencebuilder.parser;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Turns raw text into sentences of lowercase words.
- * First version: sentences end at {@code . ! ?}; other punctuation is stripped,
- * but apostrophes inside words ("don't", "it's") are kept.
+ * Sentences end at {@code . ! ?}, except periods between digits. Apostrophes and
+ * hyphens inside words ("don't", "state-of-the-art") are kept; other punctuation is stripped.
  *
  * <p>TODO edge cases to handle later:
  * <ul>
  *   <li>Abbreviations: "Mr.", "Mrs.", "Dr.", "e.g." currently end a sentence.</li>
- *   <li>Hyphens and em-dashes: "well-known" becomes "well" + "known"; "word—word" likewise.</li>
+ *   <li>Em-dashes: "word—word" becomes "word" + "word".</li>
  *   <li>Quotes after periods: {@code He said "hi."} — the closing quote lands in the next sentence (then gets stripped).</li>
- *   <li>Numbers: "3.14" splits into two sentences; decide whether numbers are words at all.</li>
  *   <li>Ellipses: "wait... what" — "..." currently ends a sentence; is that right?</li>
  * </ul>
  */
 public class Tokenizer {
 
-    private static final Pattern SENTENCE_END = Pattern.compile("[.!?]+");
-    /** Anything that is not a letter, digit, apostrophe, or whitespace. */
-    private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s]");
+    // Only a single period between digits belongs to a number; ! and ? always end sentences.
+    private static final Pattern SENTENCE_END = Pattern.compile("[!?]|(?<!\\p{Nd})\\.|\\.(?!\\p{Nd})");
+    /** Keep candidate word punctuation; sentence splitting and hyphen cleanup handle its context. */
+    private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s.\\-]");
+    private static final Pattern NON_INTERNAL_HYPHEN = Pattern.compile(
+            "(?<![\\p{L}\\p{N}])-|-(?![\\p{L}\\p{N}])");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
+    /** Offset just after the last sentence end, or zero; shares the importer's decimal rules. */
+    public int finishedLength(String text) {
+        Matcher ends = SENTENCE_END.matcher(text);
+        int length = 0;
+        while (ends.find()) {
+            length = ends.end();
+        }
+        return length;
+    }
 
     /**
      * @return one list of words per non-empty sentence; empty list for blank input
@@ -47,6 +60,7 @@ public class Tokenizer {
     private List<String> tokenizeSentence(String sentence) {
         List<String> words = new ArrayList<>();
         String cleaned = STRIP.matcher(sentence).replaceAll(" ");
+        cleaned = NON_INTERNAL_HYPHEN.matcher(cleaned).replaceAll(" ");
         for (String token : WHITESPACE.split(cleaned.strip())) {
             String word = trimApostrophes(token);
             if (!word.isEmpty()) {

@@ -95,4 +95,31 @@ class AutocompleteInputTest {
         assertEquals("chase ", AutocompleteInput.applySuggestion("", "chase"));
         assertEquals(Optional.of("chase"), context(AutocompleteInput.applySuggestion("puppies", "chase")));
     }
+
+    @Test
+    void decimalsStayWholeInSuggestionsAndPastedSentences() {
+        assertEquals(Optional.of("1.8"), context("Version 1.8 "));
+        assertEquals("", AutocompleteInput.finishedPart("Version 1.8"));
+        assertFalse(AutocompleteInput.endsSentence("", "Version 1.8"));
+        assertEquals("Version 1.8.", AutocompleteInput.withEndMark("Version 1.8"));
+    }
+
+    @Test
+    void numericPeriodWaitsUntilTheFollowingCharacterConfirmsItsMeaning() {
+        assertFalse(AutocompleteInput.endsSentence("Version 1", "Version 1."));
+        assertFalse(AutocompleteInput.endsSentence("Version 1.", "Version 1.8"));
+        assertTrue(AutocompleteInput.endsSentence("Score 1.", "Score 1. "));
+        assertTrue(AutocompleteInput.endsSentence("Score 1.", "Score 1.Next"));
+        assertEquals("Score 1.", AutocompleteInput.withEndMark("Score 1."));
+    }
+
+    @Test
+    void decimalSentenceEndsAndFollowingContextsAgreeWithTokenizer() {
+        String finished = "Version 1.8. ";
+        assertTrue(AutocompleteInput.endsSentence("Version 1.8.", finished));
+        assertEquals("Version 1.8.", AutocompleteInput.finishedPart(finished));
+        assertTrue(context(finished).isEmpty());
+        assertEquals(Optional.of("next"), context(finished + "Next"));
+        assertEquals("Version 1.8!", AutocompleteInput.finishedPart("Version 1.8! Next"));
+    }
 }
