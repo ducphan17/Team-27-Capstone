@@ -4,12 +4,12 @@
 <?import javafx.scene.control.TabPane?>
 
 <!-- Each tab's view and controller live in their own FXML file.
-     MainController reloads the report tabs when they are selected. -->
+     MainController reloads the import history and report tabs when they are selected. -->
 <TabPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
          fx:controller="edu.sentencebuilder.ui.MainController"
          tabClosingPolicy="UNAVAILABLE">
-    <Tab text="Import">
-        <fx:include source="import.fxml"/>
+    <Tab fx:id="importTab" text="Import">
+        <fx:include fx:id="fileImport" source="import.fxml"/>
     </Tab>
     <Tab text="Generate">
         <fx:include source="generate.fxml"/>

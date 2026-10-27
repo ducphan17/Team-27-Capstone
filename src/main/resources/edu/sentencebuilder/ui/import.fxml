@@ -4,6 +4,8 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.VBox?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
@@ -13,4 +15,14 @@
     <Button fx:id="chooseButton" text="Choose file..." onAction="#onChooseFile"/>
     <ProgressBar fx:id="progressBar" progress="0" maxWidth="Infinity"/>
     <Label fx:id="statusLabel" text="No file imported yet."/>
+    <Label text="Import history (newest first). Batch Generate additions are listed as batch-generated."/>
+    <TableView fx:id="fileTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="filenameColumn" text="File" prefWidth="260"/>
+            <TableColumn fx:id="wordCountColumn" text="Words" prefWidth="80"/>
+            <TableColumn fx:id="sentenceCountColumn" text="Sentences" prefWidth="80"/>
+            <TableColumn fx:id="importedColumn" text="Imported" prefWidth="150"/>
+        </columns>
+    </TableView>
+    <Label fx:id="historyLabel" text=" "/>
 </VBox>

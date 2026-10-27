@@ -309,6 +309,8 @@ src/main/java/edu/sentencebuilder/
 src/main/resources/
   schema.sql
   edu/sentencebuilder/ui/*.fxml   main.fxml + one file per tab (fx:include)
+docs/
+  manual-ui-checks.md             interface checks to run in the app
 ```
 
 ## What works vs. what's left
@@ -317,14 +319,14 @@ src/main/resources/
 
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
-* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
+* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task, and an import history table (`FileDAO.findAll`, newest first, including `batch-generated` corpus additions) with the import count and total words; it reloads after each import and whenever the tab is opened.
 * **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
 * **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
 * **File DAO:** `insert`, `findAll` (also with a caller-owned connection).
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer`: keeps contractions, hyphenated compounds, and decimal numbers intact; strips standalone punctuation. `!` and `?` always end sentences, and periods between digits stay inside numbers.
-* **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
+* **Generate tab:** start word (lowercased; Enter or button) + algorithm (a `ComboBox<SentenceGenerator>` shown by `getName()`, the label saved with each sentence) + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
 * **Autocomplete tab:**
   * *Suggestions:* shows the top 5 followers (by `count + user_count`) of the last word typed, with their imported and typed counts, as soon as that word has followers; no space is needed, and deleting the space after a word changes nothing. Lookups run after a 150 ms typing pause, the list is cleared at once when the word changes, older lookups are ignored, and a failed lookup is retried on the next edit. Clicking a suggestion (or Enter on it) adds it after the last word.
@@ -334,21 +336,22 @@ src/main/resources/
   * *Known behavior:* clearing the field and retyping a sentence counts it again. Autocomplete shares the importer's sentence boundaries, so `3.5` stays one word; a trailing period after a digit waits for another character or Enter to distinguish a sentence end from a decimal point. Abbreviations such as `Mr.` still end a sentence (see Tokenizer edge cases below).
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
-* **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
+* **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads the Import history, Words Report, and Sentence History each time their tab is opened, so imports, corpus additions, and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 103 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (13), Autocomplete save-once and retry rules (21), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (17), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
+* 107 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (13), Autocomplete save-once and retry rules (21), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (17), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Generate tab Max words parsing and algorithm list (4), import history summary (3), and batch count parsing (2). All use in-memory data, no database.
 
 **Verification status**
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * The Autocomplete tab (suggestions while typing, sentence saving, Enter, continued sentences, retries, and the pending file across a restart) was checked manually against MySQL (see `changelog.md`, v1.9).
-* `FileDAO.findAll` is verified against MySQL in `FileImporterIT` through its caller-owned-connection overload; the zero-argument method only opens an application connection and delegates to it. No tab uses it yet.
+* `FileDAO.findAll` is verified against MySQL in `FileImporterIT` through its caller-owned-connection overload; the zero-argument method only opens an application connection and delegates to it. The Import tab's history uses the zero-argument method and was checked read-only against MySQL (see `changelog.md`, v2.2).
+* Interface checks that need the running app are listed in [`docs/manual-ui-checks.md`](docs/manual-ui-checks.md); results go in `changelog.md`.
 * The 14 automated MySQL integration tests cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8 and v2.1.
 
 **Still to do**
 
-* `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
+* The open checks in [`docs/manual-ui-checks.md`](docs/manual-ui-checks.md).
 * Tokenizer edge cases (abbreviations, em-dashes, quotes after periods, broader number formats, ellipses).
 
 Next: Tokenizer edge cases. Every tab is implemented.
