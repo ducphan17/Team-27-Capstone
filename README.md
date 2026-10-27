@@ -4,8 +4,8 @@ A statistical "auto-complete on steroids": imports text files, stores word and
 word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
-> Importing, Generate, Batch Generate, Words Report, and Sentence History work.
-> Autocomplete is the next checkpoint.
+> All six tabs work: Import, Generate, Batch Generate, Autocomplete, Words Report,
+> and Sentence History. Tokenizer edge cases are next.
 > See [What works vs. what's left](#what-works-vs-whats-left).
 
 ## Setup
@@ -235,7 +235,7 @@ Plain `mvn test` runs unit tests only. The `db-tests` Maven profile adds Failsaf
 which runs `FileImporterIT` during `verify`. Results are in
 `target/surefire-reports` and `target/failsafe-reports`.
 
-The 11 MySQL integration tests check:
+The 13 MySQL integration tests check:
 
 * Importing `Zorvex miplex. Zorvex talvex.` twice preserves word IDs and
   `first_seen`, doubles imported counts, creates two file records, and preserves
@@ -255,8 +255,13 @@ The 11 MySQL integration tests check:
   connection sees no changes before the service commits.
 * An SQL failure after text import but before marking rolls back all changes.
 * A runtime failure after marking rolls back both corpus counts and flags.
+* `AutocompleteService.recordWord` adds unknown words with zero counts, adds 1 to
+  `user_count` for new and existing pairs, and leaves imported words and pair
+  counts unchanged. A word at a sentence start creates no pair.
+* A failure after the new word is inserted, but before the pair is updated, rolls
+  back the new word.
 
-The last three checks call the production service with guarded test connections
+The corpus and Autocomplete transaction checks call the production service with guarded test connections
 and injected DAO failures; they do not copy its transaction implementation.
 
 Rollback checks compare stored rows, not auto-increment counters; failed
@@ -285,8 +290,7 @@ Import failed: Word exceeds the 100-character limit (101 characters): "aaaa…".
 The actual preview contains the first 30 characters. The Choose File button must
 be enabled again. The automated tests verify unchanged database contents through
 the same validation/transaction method the UI calls; this last check verifies the
-visible JavaFX message. Import and Batch Generate are implemented; Autocomplete
-is the next checkpoint.
+visible JavaFX message.
 
 ## Project layout
 
@@ -294,9 +298,9 @@ is the next checkpoint.
 src/main/java/edu/sentencebuilder/
   model/      Word, WordPair, SourceFile, GeneratedSentence, ImportedWordCounts
   dao/        Database (connections), WordDAO, WordPairDAO, FileDAO, SentenceDAO, DataAccessException
-  parser/     Tokenizer, FileImporter (javafx.concurrent.Task), TextImporter, CorpusService, InvalidImportException
+  parser/     Tokenizer, FileImporter (javafx.concurrent.Task), TextImporter, CorpusService, AutocompleteService, InvalidImportException
   generator/  WordStatsSource, Follower, SentenceGenerator, WeightedRandomGenerator, MostFrequentGenerator, StartingWordPicker
-  ui/         MainApp, Launcher, one controller per tab
+  ui/         MainApp, Launcher, one controller per tab, AutocompleteInput (text rules for Autocomplete)
 src/main/resources/
   schema.sql
   edu/sentencebuilder/ui/*.fxml   main.fxml + one file per tab (fx:include)
@@ -309,38 +313,34 @@ src/main/resources/
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
 * **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
-* **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent`, `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
-* **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount`.
+* **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
+* **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
 * **File DAO:** `insert`, `findAll`.
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer` first version.
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
+* **Autocomplete tab:** typing a space, comma, or period finishes a word and shows its top 5 followers (by `count + user_count`) in a background lookup; results from an older lookup are ignored. A period, `!`, or `?` ends the sentence and clears the list. Clicking a suggestion (or pressing Enter on it) replaces any partly typed word. Each finished word, typed or picked, is saved by `AutocompleteService` in one transaction: unknown words are added with zero counts, and `word_pair.user_count` goes up by 1 for the pair it completes. Words are normalized with the importer's `Tokenizer`, pairs continue across commas but not across sentence ends, and imported counts are never changed. Backspacing, editing earlier text, or typing a second space records nothing; a pasted run of words records only the last word. Saves run in typing order on one background thread.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 52 unit tests covering shared word and DAO validation (6), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
+* 66 unit tests covering shared word and DAO validation (6), Autocomplete save validation (2), Autocomplete text rules (12), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
 
 **Verification status**
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
-* `WordDAO.insertIfAbsent`, `WordPairDAO.incrementUserCount`, and `FileDAO.findAll` are implemented but not yet checked against MySQL.
-* The 11 automated MySQL integration tests cover import persistence, `WordDAO.findStartingWords`, sentence inserts, and `SentenceDAO.markAddedToCorpus` through the production corpus service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
+* `FileDAO.findAll` is implemented but not yet checked against MySQL.
+* The 13 automated MySQL integration tests cover import persistence, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
 
 **Still to do**
 
-| Tab | DAO work needed | Tab work needed |
-|---|---|---|
-| Autocomplete | none (uses `insertIfAbsent`, `incrementUserCount`) | top followers after space/comma/period; record choices; ignore stale lookups |
-
-Also open:
 * `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
 * Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
 
-Next: Autocomplete → Tokenizer edge cases. Import and Batch Generate are implemented.
+Next: Tokenizer edge cases. Every tab is implemented.
 
 ## Design notes
 

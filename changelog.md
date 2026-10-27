@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.8**
+Current version: **1.9**
 
 ## Instructions for future updates
 
@@ -30,6 +30,27 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.9 — 2026-10-26
+
+**Author:** Tien Phan
+
+**Checkpoint:** Autocomplete tab.
+
+### Changes
+
+- **`AutocompleteController.java` / `autocomplete.fxml`:** Replaced the placeholder. Typing a space, comma, or period after a word shows that word's top 5 followers, ordered by `count + user_count`. Lookups run in the background; a counter discards results from older lookups so fast typing never shows stale suggestions. A period, `!`, or `?` ends the sentence and clears the list. Clicking a suggestion or pressing Enter on it replaces any partly typed word and adds a space; the text listener then saves it, so picked words are counted once. Saves run in typing order on one background thread. Added a suggestions label and a status label for save errors.
+- **`AutocompleteInput.java` (new):** JavaFX-free text rules: when an edit finishes a word, which word precedes it, and how a suggestion is inserted. Words are normalized with the importer's `Tokenizer`. Pairs continue across commas but not across sentence ends, matching imported pairs. Backspacing, editing earlier text, typing a second trigger, or punctuation with no word records nothing; a paste records only its last word.
+- **`AutocompleteService.java` (new):** Saves one finished word in a single transaction: `insertIfAbsent` adds unknown words with zero counts, then `incrementUserCount` adds 1 to the pair's `user_count`. Imported total/start/end and pair counts are never changed. Validates word length before opening a connection and rolls back on SQL or runtime errors. Takes an injectable connection factory like `CorpusService`.
+- **`WordDAO.java` / `WordPairDAO.java`:** Added `insertIfAbsent(Connection, String)` and `incrementUserCount(Connection, int, int)` overloads that use the caller's connection and leave it open. The existing methods delegate to them. Fixed the indentation of `insertIfAbsent`.
+- **Unit tests:** Added `AutocompleteInputTest` (12 tests) and `AutocompleteServiceValidationTest` (2 tests). The suite now contains 66 unit tests, up from 52.
+- **`FileImporterIT.java`:** Added 2 MySQL integration tests through the production `AutocompleteService`: unknown words are added with zero counts, `user_count` increases for new and existing pairs, imported words and pair counts are unchanged, and a sentence-start word creates no pair; an injected failure after the new word is inserted rolls it back. The suite now contains 13 integration tests.
+- **`README.md`:** Documented the Autocomplete tab, updated test counts, integration checks, verification status, and project layout, and removed Autocomplete from the remaining work.
+
+### Verification
+
+- Ran `mvn -Pdb-tests verify` against the isolated test database: all 66 unit tests and 13 MySQL integration tests passed, with zero failures, errors, or skipped tests.
+- Manual check in the running app is still pending: suggestions after space/comma/period, picking a suggestion, and the `user_count` / new-word changes in MySQL.
 
 ## Version 1.8 — 2026-10-25
 

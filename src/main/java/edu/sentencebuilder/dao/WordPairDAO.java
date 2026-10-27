@@ -37,6 +37,7 @@ public class WordPairDAO implements WordStatsSource {
                 WHERE f.text = ?
                 ORDER BY p.count + p.user_count DESC
                 """;
+        // Tien Phan
         try (Connection conn = Database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, word);
@@ -95,19 +96,28 @@ public class WordPairDAO implements WordStatsSource {
      * @throws DataAccessException if the upsert fails
      */
     public void incrementUserCount(int fromWordId, int toWordId) {
+        try (Connection conn = Database.getConnection()) {
+            incrementUserCount(conn, fromWordId, toWordId);
+        } catch (SQLException e) {
+            throw new DataAccessException(
+                    "Could not increment user count for pair " + fromWordId + " -> " + toWordId, e);
+        }
+    }
+
+    /**
+     * Same as {@link #incrementUserCount(int, int)}, using the caller's connection so the
+     * Autocomplete save is one transaction. Leaves the connection open.
+     */
+    public void incrementUserCount(Connection conn, int fromWordId, int toWordId) throws SQLException {
         String sql = """
                 INSERT INTO word_pair (from_word_id, to_word_id, count, user_count)
                 VALUES (?, ?, 0, 1) AS incoming
                 ON DUPLICATE KEY UPDATE user_count = word_pair.user_count + 1
                 """;
-        try (Connection conn = Database.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, fromWordId);
             ps.setInt(2, toWordId);
             ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new DataAccessException(
-                    "Could not increment user count for pair " + fromWordId + " -> " + toWordId, e);
         }
     }
 }

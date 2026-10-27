@@ -54,22 +54,36 @@ public class WordDAO {
         }
     }
 
-/**
- * Adds a word with all counts 0 if it is not already stored, and returns its ID.
- * An existing row (counts, first_seen) is left untouched.
- * Must not be called on the JavaFX Application Thread.
- *
- * @throws DataAccessException if the insert or lookup fails
- */
-public int insertIfAbsent(String text) {
-    // Autocomplete bypasses the importer, so validate before opening its connection too.
-    Word.validateTextLength(text);
-    String insertSql = """
-            INSERT INTO word (text) VALUES (?) AS incoming
-            ON DUPLICATE KEY UPDATE text = word.text
-            """;
-    String lookupSql = "SELECT word_id FROM word WHERE text = ?";
-    try (Connection conn = Database.getConnection()) {
+    /**
+     * Tien Phan
+     * 
+     * Adds a word with all counts 0 if it is not already stored, and returns its ID.
+     * An existing row (counts, first_seen) is left untouched.
+     * Must not be called on the JavaFX Application Thread.
+     *
+     * @throws DataAccessException if the insert or lookup fails
+     */
+    public int insertIfAbsent(String text) {
+        // Autocomplete bypasses the importer, so validate before opening its connection too.
+        Word.validateTextLength(text);
+        try (Connection conn = Database.getConnection()) {
+            return insertIfAbsent(conn, text);
+        } catch (SQLException e) {
+            throw new DataAccessException("Could not add word '" + text + "'", e);
+        }
+    }
+
+    /**
+     * Same as {@link #insertIfAbsent(String)}, using the caller's connection so Autocomplete
+     * can save a new word and its pair in one transaction. Leaves the connection open.
+     */
+    public int insertIfAbsent(Connection conn, String text) throws SQLException {
+        Word.validateTextLength(text);
+        String insertSql = """
+                INSERT INTO word (text) VALUES (?) AS incoming
+                ON DUPLICATE KEY UPDATE text = word.text
+                """;
+        String lookupSql = "SELECT word_id FROM word WHERE text = ?";
         try (PreparedStatement ps = conn.prepareStatement(insertSql)) {
             ps.setString(1, text);
             ps.executeUpdate();
@@ -83,10 +97,7 @@ public int insertIfAbsent(String text) {
                 return rs.getInt("word_id");
             }
         }
-    } catch (SQLException e) {
-        throw new DataAccessException("Could not add word '" + text + "'", e);
     }
-}
 
     // Inserts new words or adds imported counts to existing words
     // Uses the caller's connection so the importer can save words, pairs, and

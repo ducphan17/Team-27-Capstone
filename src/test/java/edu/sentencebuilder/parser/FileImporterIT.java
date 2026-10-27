@@ -404,4 +404,69 @@ class FileImporterIT {
     void failureAfterMarkingRollsBackBothCountsAndFlags() throws SQLException {
         verifyTextAndFlagRollback(true);
     }
+
+    private static List<List<Object>> userPairs(Connection conn) throws SQLException {
+        return rows(conn, """
+                SELECT f.text, t.text, p.count, p.user_count
+                FROM word_pair p
+                JOIN word f ON f.word_id = p.from_word_id
+                JOIN word t ON t.word_id = p.to_word_id
+                ORDER BY f.text, t.text
+                """);
+    }
+
+    // Tien Phan
+    @Test
+    void autocompleteAddsUnknownWordsAndCountsOnlyUserChoices() throws SQLException {
+        seed();
+        List<List<Object>> importedWords;
+        try (Connection conn = open()) {
+            importedWords = rows(conn, "SELECT * FROM word ORDER BY word_id");
+        }
+
+        AutocompleteService service = new AutocompleteService(FileImporterIT::open);
+        service.recordWord("zorvex", "miplex");   // known pair: user_count 7 -> 8
+        service.recordWord("miplex", "glorp");    // unknown word and new pair
+        service.recordWord("miplex", "glorp");    // same pair again: no duplicate word
+        service.recordWord(null, "blim");         // sentence start: word only, no pair
+
+        try (Connection conn = open()) {
+            // Imported rows keep their IDs, counts, and first_seen; new words have zero counts.
+            List<List<Object>> words = rows(conn, "SELECT * FROM word ORDER BY word_id");
+            assertEquals(importedWords, words.subList(0, importedWords.size()));
+            assertEquals(List.of(List.of("blim", 0, 0, 0), List.of("glorp", 0, 0, 0)), rows(conn, """
+                    SELECT text, total_count, start_count, end_count FROM word
+                    WHERE text IN ('glorp', 'blim') ORDER BY text
+                    """));
+            // Autocomplete changes user_count only; imported pair counts stay the same.
+            assertEquals(List.of(
+                    List.of("miplex", "glorp", 0, 2),
+                    List.of("zorvex", "miplex", 1, 8),
+                    List.of("zorvex", "talvex", 1, 0)), userPairs(conn));
+        }
+    }
+
+    @Test
+    void autocompleteFailureRollsBackTheNewWord() throws SQLException {
+        seed();
+        var before = snapshot();
+
+        WordDAO words = new WordDAO();
+        WordPairDAO failingPairs = new WordPairDAO(words) {
+            @Override
+            public void incrementUserCount(Connection conn, int fromWordId, int toWordId)
+                    throws SQLException {
+                // Reaching this DAO proves the service already inserted the new word.
+                assertEquals(List.of(List.of("glorp")),
+                        rows(conn, "SELECT text FROM word WHERE text = 'glorp'"));
+                assertEquals(before, snapshot(), "The new word must still be uncommitted");
+                throw new SQLException("Intentional autocomplete failure");
+            }
+        };
+        AutocompleteService service = new AutocompleteService(FileImporterIT::open, words, failingPairs);
+
+        SQLException error = assertThrows(SQLException.class, () -> service.recordWord("zorvex", "glorp"));
+        assertEquals("Intentional autocomplete failure", error.getMessage());
+        assertEquals(before, snapshot());
+    }
 }
