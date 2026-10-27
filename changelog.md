@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.9**
+Current version: **2.0**
 
 ## Instructions for future updates
 
@@ -31,18 +31,56 @@ Entry template:
 - Note relevant checks still pending.
 ```
 
-## Version 1.9 — 2026-10-27
+## Version 2.0 — 2026-10-27
 
 **Author:** Arath Brosig
 
 ### Changes
-- **'AutocompleteController.java':** Implemented background threading logic to fetch predictive suggestions on space and punctuation boundaries. Wired suggestions to update the UI and save the resulting bigram weights via 'WordDAO.insertIfAbsent' and 'WordPairDAO.incrementUserCount' on a daemon thread to prevent UI freezing.
+- **'AutocompleteController.java':** Integrated the new 'AutocompleteSaves' and 'ExecutorService' background threading achitecture to handle predictive suggestion and database writes safely. Resolved task-identity crashes and self-looping bigram pairs by utilizing state-tracking variables ('lookupGeneration') and 'PauseTransition' for debounced typing delays.
 - **'Tokenizer.java':** Refind regular expressions ('SENTENCE_END' and 'STRIP') to preserve intra-word punctuation. Contractions (e.g., "don't"), hyphenated compounds (e.g., "state-of-the-art"), and decimal numbers (e.g., "1.8") now remain intact as single tokens, while trailing punctuation is correctly stripped.
 
 ### Verification
 
 - **Tokenizer Tests:** Added 5 new edge-case tests to 'TokenizerTest.java' (trailing punctuation, contractions, hyphens, multiple spaces, alphanumeric boundaries) and assertions with the tokenizer's lowercase list output. Ran 'mvn test' and verified all unit tests pass.
 - Pending verification: End-to-end testing of the Autocomplete tab in teh running JavaFX application, ensuring database inserts and UI updates trigger correctly without race conditions.
+
+## Version 1.9 — 2026-10-27
+
+**Author:** Tien Phan
+
+**Checkpoint:** Autocomplete tab.
+
+### Changes
+
+- **`AutocompleteController.java` / `autocomplete.fxml`:** Replaced the placeholder.
+  - *Suggestions:* shows the top 5 followers of the last word typed, ordered by `count + user_count`, with both counts (for example `cat (imported 3 · typed 2)`), so `user_count` is visible in the app. Suggestions appear as soon as the typed word has followers, without waiting for a space, so deleting the space after a word changes nothing. Lookups run after a 150 ms typing pause; when the word changes the list is cleared at once, older lookups are ignored, and a failed lookup is retried on the next edit. Clicking a suggestion (or Enter on it) adds it after the last word.
+  - *Saving:* a sentence is saved when it ends with `.`, `!`, or `?`; Enter adds a period and keeps the text visible, so typing afterwards starts a new sentence. Saving uses the text at that moment, so typos corrected before the sentence ends are never stored (words are never deleted), and picked words are counted once. The status label shows "Saving…", "Saved…", "This sentence was already saved.", or the failure (as a count when more than 3 sentences).
+  - *Failed saves:* failed sentences are retried in their own transaction, never blocking new ones: automatically every 10 seconds for up to 3 failed attempts, and whenever Enter is pressed. Clearing the field keeps them.
+- **`AutocompleteInput.java` (new):** JavaFX-free text rules: which word the suggestions belong to, when an edit ends a sentence, which sentences are new, how Enter ends a sentence, and how a suggestion is inserted. Words are normalized with the importer's `Tokenizer`.
+- **`AutocompleteSaves.java` (new):** JavaFX-free record of handled sentences, compared by their words with repeats counted, so `.`, `!`, `?`, and Enter share one rule: deleting, changing, or retyping an end mark, or editing another sentence, never saves an unchanged sentence twice. A sentence that continues a saved one (Enter, then the period deleted and more typed) saves only its new pairs, and a shortened one saves nothing; any other edit, or the same sentence typed again, counts as new. Also holds the retry list and limit, and rejects sentences with a word over 100 characters up front so they cannot block retries. Thread-safe, since the save thread reports results.
+- **`PendingSentences.java` (new):** keeps sentences not yet confirmed as saved in `autocomplete-pending.txt` in the working directory (git-ignored; atomic write; deleted when empty). The save thread rewrites it before and after every attempt, including first attempts, and reads it on start to retry those sentences; on close the app waits up to 5 seconds for a running save. So closing the app neither loses a sentence nor retries a committed one. Only a hard crash between a commit and the next file write can still cause one repeat.
+- **`AutocompleteService.java` (new):** `recordSentences` saves in one transaction: `insertIfAbsent` adds unknown words with zero counts, then `incrementUserCount` adds 1 to `user_count` for each pair of neighboring words. Pairs continue across commas but never cross a sentence end, matching imported pairs; imported counts are never changed. Validates word length before connecting and rolls back on failure. A close failure after a successful commit is not reported, so a retry never counts a sentence twice. Takes an injectable connection factory like `CorpusService`.
+- **`WordDAO.java` / `WordPairDAO.java`:** Added `insertIfAbsent(Connection, String)` and `incrementUserCount(Connection, int, int)` overloads that use the caller's connection and leave it open; the existing methods delegate to them. Fixed the indentation of `insertIfAbsent`.
+- **`Background.java`:** Added a `run(Executor, …)` overload so ordered work (Autocomplete saves and pending-file writes) uses the same task helper as other background work.
+- **Tests:** Added `AutocompleteInputTest` (10), `AutocompleteSavesTest` (20), `PendingSentencesTest` (4), `AutocompleteServiceValidationTest` (2), and `AutocompleteServiceTransactionTest` (2), bringing the unit suite from 52 to 90 tests. Added 2 MySQL integration tests to `FileImporterIT` through the production service: new words get zero counts, `user_count` rises for new and existing pairs, imported counts are unchanged, no pair crosses a sentence end, and a failure after inserting a new word rolls it back (13 integration tests in total).
+- **PR review:** the review found that edited text could save a sentence twice, failed saves were treated as completed, and suggestions could belong to a deleted word; these are fixed by the behavior above, with a unit test for each scenario.
+- **Sentence-tracking follow-up:** Track each current sentence occurrence separately from its saved or queued prefix. Extending a saved sentence no longer leaves an old version that suppresses a newly typed repetition. Rejected text is remembered without marking its words as saved, so removing an oversized word saves the corrected sentence. Five regression tests cover both fixes, rejected continuations, shortening and re-extending a saved sentence, and multiple shortened occurrences.
+- **`README.md` / `.gitignore`:** Documented the Autocomplete tab, test counts, integration checks, verification status, and project layout; removed Autocomplete from the remaining work; ignored the pending-sentence file.
+
+### Verification
+
+- Before the sentence-tracking follow-up, `mvn -Pdb-tests verify` against the isolated test database: all 85 unit tests and 13 MySQL integration tests passed, with zero failures, errors, or skipped tests.
+- Sentence-tracking follow-up: reproduced both reported bugs with failing regression tests, then ran `mvn -o test`: all 90 unit tests passed, with zero failures, errors, or skipped tests. MySQL integration tests and the running JavaFX app were not rechecked for this follow-up.
+- Manually checked an earlier version of the tab (before the PR review fixes; Enter then cleared the field) in the running app against MySQL, after importing `Puppies chase balls. Puppies chase cats. Puppies love balls.`:
+  - Suggestions appeared after a space and a comma with imported/typed counts, ordered by weight, and typed counts rose after each saved sentence. Picked suggestions replaced the partly typed word and were counted once.
+  - A corrected typo (`chsae`) was never stored, clearing the field saved nothing, and retyping a deleted period did not save twice. This check found a misleading "Sentence saved" message, which was fixed and rechecked.
+  - SQL confirmed `puppies→chase` 2/3, `puppies→love` 1/3, `chase→balls` 1/2, `chase→cats` 1/1, `love→balls` 1/1, and the typed-only pairs `love→cats` 0/1 and `love→frisbees` 0/1; imported word counts were unchanged, and `frisbees` was added with 0/0/0.
+- Manually rechecked the final version in the running app against MySQL with the same data; everything behaved as expected:
+  - Typing `puppies` showed its followers without a space; deleting the space after a word kept the same suggestions; clicking a suggestion added it after the last word.
+  - Enter turned `puppies love cats` into `puppies love cats.` and saved it; Enter on an already finished sentence, or changing `!` to `.` with Enter, showed "This sentence was already saved." in the status label (this check found that message in the wrong label, which was fixed and rechecked).
+  - After Enter, deleting the period and typing ` and dogs.` saved only `"cats and dogs"`, so `love→cats` rose once, not twice.
+  - With MySQL stopped, a sentence waited and automatic retries stopped after 3 attempts; after restarting MySQL, Enter saved it once. Closing the app with a sentence waiting left `autocomplete-pending.txt`; reopening with MySQL running saved it and deleted the file.
+- Not checked manually: a word over 100 characters (covered by unit tests).
 
 ## Version 1.8 — 2026-10-25
 

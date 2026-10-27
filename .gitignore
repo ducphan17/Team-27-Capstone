@@ -8,3 +8,7 @@ samples/
 
 # Separate credentials for destructive integration-test fixtures.
 db-test.properties
+
+# Autocomplete sentences waiting to be saved (written by the app).
+autocomplete-pending.txt
+autocomplete-pending.txt.tmp
