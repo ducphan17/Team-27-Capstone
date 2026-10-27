@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.1**
+Current version: **2.2**
 
 ## Instructions for future updates
 
@@ -30,6 +30,28 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.2 — 2026-10-27
+
+**Author:** Ben Quidlat
+
+**Checkpoint:** Interface follow-ups: Generate algorithm box, Import history, manual check list.
+
+### Changes
+
+- **`GenerateController.java`:** Resolved the last Generate TODO. The algorithm box is now a `ComboBox<SentenceGenerator>` holding one `WeightedRandomGenerator` and one `MostFrequentGenerator`, shown through a `StringConverter` that uses `getName()`, so the label in the box is the same one saved in `generated_sentence.algorithm`. The selected generator is used directly instead of matching the `"Most frequent"` string. One `WordPairDAO` is created per controller instead of per click; DAOs open a connection per call and only one generation runs at a time, so reuse is safe. `generate.fxml` is unchanged. Batch Generate still uses the string pattern and was left to its owner.
+- **`ImportController.java` / `import.fxml`:** Added an import history table under the progress bar (File, Words, Sentences, Imported) loaded with `FileDAO.findAll()` (verified against MySQL in v2.1) through `Background`, newest first. Corpus additions from Batch Generate appear as `batch-generated` rows. A label shows the import count and total words, or the load error. The history loads at startup, after each successful import, and whenever the tab is opened; a reload requested while one is running runs once it finishes, so the newest rows are not missed.
+- **`MainController.java` / `main.fxml`:** The Import tab and its include now have `fx:id`s (`importTab`, `fileImport`) so the history reloads when the tab is selected, like Words Report and Sentence History.
+- **`docs/manual-ui-checks.md` (new):** Checklist of interface checks that need the running app: Generate algorithm names, Import history, the four Batch Generate checks pending since v1.8, and the Autocomplete checks pending since v1.9 and v2.0 (100-character word, lone `-`, end-to-end save).
+- **Tests:** Added `ImportControllerTest` (3) for the history summary text and 1 `GenerateControllerTest` case for the algorithm list order and displayed names. The unit suite now has 107 tests (103 from v2.1, 4 new).
+- **`README.md`:** Documented the algorithm box, Import history, and auto-refresh change; updated the unit test breakdown to 107; noted that the Import tab now uses `FileDAO.findAll`; replaced the import-history to-do with a pointer to the manual check list; added `docs/` to the project layout.
+
+### Verification
+
+- Maven is not installed on this machine, so `mvn test` was not run. Instead, all main and test sources were compiled with `javac --release 21` against the JavaFX 21.0.5, MySQL Connector/J 8.4.0, and JUnit 5.10.2 jars from the local Maven cache, and every `@Test` method was run with a small reflection runner (the cache has no JUnit launcher): 107 passed, 0 failed. Integration tests (`*IT`) were not compiled or run.
+- Loaded `main.fxml` off-screen against the local MySQL database (read-only; no pending Autocomplete file was present). The Import history showed every `source_file` row (`5 imports, 8246 words in total` on the last run, after the manual testing below added imports), and the Generate algorithm box had 2 items with `Weighted random` selected and displayed.
+- Reviewed the Batch Generate and Autocomplete code paths behind the pending v1.8 and v1.9 checks; no defects found by reading.
+- Pending: every item in `docs/manual-ui-checks.md`, done by clicking through the running app. `mvn test` on a machine with Maven.
 
 ## Version 2.1 — 2026-10-27
 

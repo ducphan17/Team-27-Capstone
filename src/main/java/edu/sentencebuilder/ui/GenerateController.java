@@ -6,6 +6,7 @@ import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.generator.MostFrequentGenerator;
 import edu.sentencebuilder.generator.SentenceGenerator;
 import edu.sentencebuilder.generator.WeightedRandomGenerator;
+import edu.sentencebuilder.generator.WordStatsSource;
 import edu.sentencebuilder.model.GeneratedSentence;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -16,6 +17,8 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import javafx.util.StringConverter;
+
+import java.util.List;
 
 /**
  * Generate tab: produces one sentence from a user-chosen starting word,
@@ -29,15 +32,18 @@ public class GenerateController {
     static final int MAX_WORDS_LIMIT = 100;
 
     @FXML private TextField startWordField;
-    @FXML private ComboBox<String> algorithmBox;
+    @FXML private ComboBox<SentenceGenerator> algorithmBox;
     @FXML private Spinner<Integer> maxWordsSpinner;
     @FXML private Button generateButton;
     @FXML private Label resultLabel;
 
+    /** DAOs are stateless (a connection per call), so one source serves every generation. */
+    private final WordPairDAO source = new WordPairDAO(new WordDAO());
+
     @FXML
     private void initialize() {
-        // TODO: consider a ComboBox<SentenceGenerator> with a StringConverter using getName().
-        algorithmBox.getItems().addAll("Weighted random", "Most frequent");
+        algorithmBox.getItems().addAll(algorithms(source));
+        algorithmBox.setConverter(ALGORITHM_NAMES);
         algorithmBox.getSelectionModel().selectFirst();
 
         SpinnerValueFactory.IntegerSpinnerValueFactory maxWords =
@@ -78,13 +84,8 @@ public class GenerateController {
         }
         maxWordsSpinner.getValueFactory().setValue(maxWords);
 
-        WordDAO wordDAO = new WordDAO();
-        WordPairDAO source = new WordPairDAO(wordDAO);
-
-        SentenceGenerator generator =
-                "Most frequent".equals(algorithmBox.getValue())
-                        ? new MostFrequentGenerator(source)
-                        : new WeightedRandomGenerator(source);
+        // Safe to reuse across clicks: only one generation task runs at a time.
+        SentenceGenerator generator = algorithmBox.getValue();
 
         Task<String> task = new Task<>() {
             @Override
@@ -117,6 +118,25 @@ public class GenerateController {
         Thread worker = new Thread(task, "generate-sentence");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /** Shows each generator by {@link SentenceGenerator#getName()}, the same label saved with its sentences. */
+    static final StringConverter<SentenceGenerator> ALGORITHM_NAMES = new StringConverter<>() {
+        @Override
+        public String toString(SentenceGenerator generator) {
+            return generator == null ? "" : generator.getName();
+        }
+
+        @Override
+        public SentenceGenerator fromString(String text) {
+            // Only called for editable combo boxes; the algorithm box is not editable.
+            throw new UnsupportedOperationException();
+        }
+    };
+
+    /** The algorithm choices in display order; the first is the default. */
+    static List<SentenceGenerator> algorithms(WordStatsSource source) {
+        return List.of(new WeightedRandomGenerator(source), new MostFrequentGenerator(source));
     }
 
     /**
