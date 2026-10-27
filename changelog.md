@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.8**
+Current version: **1.9**
 
 ## Instructions for future updates
 
@@ -30,6 +30,19 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 1.9 — 2026-10-27
+
+**Author:** Arath Brosig
+
+### Changes
+- **'AutocompleteController.java':** Implemented background threading logic to fetch predictive suggestions on space and punctuation boundaries. Wired suggestions to update the UI and save the resulting bigram weights via 'WordDAO.insertIfAbsent' and 'WordPairDAO.incrementUserCount' on a daemon thread to prevent UI freezing.
+- **'Tokenizer.java':** Refind regular expressions ('SENTENCE_END' and 'STRIP') to preserve intra-word punctuation. Contractions (e.g., "don't"), hyphenated compounds (e.g., "state-of-the-art"), and decimal numbers (e.g., "1.8") now remain intact as single tokens, while trailing punctuation is correctly stripped.
+
+### Verification
+
+- **Tokenizer Tests:** Added 5 new edge-case tests to 'TokenizerTest.java' (trailing punctuation, contractions, hyphens, multiple spaces, alphanumeric boundaries) and assertions with the tokenizer's lowercase list output. Ran 'mvn test' and verified all unit tests pass.
+- Pending verification: End-to-end testing of the Autocomplete tab in teh running JavaFX application, ensuring database inserts and UI updates trigger correctly without race conditions.
 
 ## Version 1.8 — 2026-10-25
 
