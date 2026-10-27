@@ -110,4 +110,31 @@ class TokenizerTest {
         );
         assertIterableEquals(expected, tokenizer.tokenize(input));
     }
+
+    @Test
+    void exclamationAndQuestionMarksBetweenDigitsStillEndSentences() {
+        for (String mark : List.of("!", "?")) {
+            assertEquals(List.of(List.of("score", "1"), List.of("2", "players")),
+                    tokenizer.tokenize("Score 1" + mark + "2 players."));
+        }
+    }
+
+    @Test
+    void standaloneAndTrailingHyphensAreRemoved() {
+        assertEquals(List.of(List.of("hello", "world")), tokenizer.tokenize("Hello - world."));
+        assertEquals(List.of(List.of("hello", "world")), tokenizer.tokenize("-Hello- --world--."));
+        assertTrue(tokenizer.tokenize("---").isEmpty());
+    }
+
+    @Test
+    void repeatedPeriodsBetweenDigitsStillEndSentences() {
+        assertEquals(List.of(List.of("1"), List.of("2")), tokenizer.tokenize("1...2"));
+    }
+
+    @Test
+    void finishedLengthIgnoresDecimalPeriodsButIncludesSentenceEnds() {
+        assertEquals(0, tokenizer.finishedLength("Version 1.8"));
+        assertEquals("Version 1.8.".length(), tokenizer.finishedLength("Version 1.8. More"));
+        assertEquals(2, tokenizer.finishedLength("1!2"));
+    }
 }

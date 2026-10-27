@@ -19,6 +19,22 @@ class AutocompleteSavesTest {
     private final AutocompleteSaves saves = new AutocompleteSaves();
 
     @Test
+    void typingADecimalThenEnterSavesOnlyTheCompleteNumber() {
+        String text = "Version 1.8";
+        for (int length = 1; length <= text.length(); length++) {
+            String oldText = text.substring(0, length - 1);
+            String newText = text.substring(0, length);
+            if (AutocompleteInput.endsSentence(oldText, newText)) {
+                saves.take(AutocompleteInput.finishedPart(newText));
+            }
+        }
+        assertTrue(saves.unconfirmed().isEmpty(), "No integer prefix should be queued while typing");
+        assertEquals(List.of(List.of("version", "1.8")),
+                saves.take(AutocompleteInput.withEndMark(text)).sentences());
+        assertTrue(saves.take(AutocompleteInput.withEndMark(text)).isEmpty());
+    }
+
+    @Test
     void deletingTheEndMarkThenSavingAgainSavesNothing() {
         for (String mark : List.of(".", "!", "?")) {
             AutocompleteSaves fresh = new AutocompleteSaves();
