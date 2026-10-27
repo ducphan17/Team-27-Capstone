@@ -331,7 +331,7 @@ src/main/resources/
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
 * `ui/Background`: shared helper that runs DAO calls on a daemon `Task` and turns failures into readable status messages.
-* 85 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (10), Autocomplete save-once and retry rules (15), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
+* 90 unit tests covering shared word and DAO validation (6), Autocomplete save validation and transaction outcomes (4), Autocomplete text rules (10), Autocomplete save-once and retry rules (20), the Autocomplete pending-sentence file (4), import count/pair conversion and validation (12), the tokenizer (8), `WeightedRandomGenerator` (6), `MostFrequentGenerator` (1), weighted starting-word selection (4), Words Report filtering/validation (6), Sentence History duplicate counting (4), Max words parsing (3), and batch count parsing (2). All use in-memory data, no database.
 
 **Verification status**
 

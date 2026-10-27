@@ -36,8 +36,12 @@ final class AutocompleteSaves {
         }
     }
 
-    // Sentences in the current field that were saved, are being saved, or wait for a retry.
-    private final List<List<String>> handled = new ArrayList<>();
+    /** Current text of one sentence occurrence and its saved or queued prefix. */
+    private record HandledSentence(List<String> words, List<String> covered) {
+    }
+
+    // One entry per current occurrence, including rejected text with no saved coverage.
+    private final List<HandledSentence> handled = new ArrayList<>();
     // Sentences whose save failed. Not tied to the field, so clearing it keeps them.
     private final List<List<String>> waiting = new ArrayList<>();
     // Sentences taken for a save (first attempt or retry) whose result is not known yet.
@@ -48,52 +52,72 @@ final class AutocompleteSaves {
     synchronized Batch take(String text) {
         // Match the text's sentences against handled ones, one to one, so a sentence typed
         // twice is new the second time. Handled sentences left unmatched were edited away.
-        List<List<String>> unmatched = new ArrayList<>(handled);
+        List<HandledSentence> unmatched = new ArrayList<>(handled);
+        List<HandledSentence> current = new ArrayList<>();
         List<List<String>> fresh = new ArrayList<>();
         for (List<String> sentence : AutocompleteInput.sentences(text)) {
-            if (!unmatched.remove(sentence)) {
+            HandledSentence match = unmatched.stream()
+                    .filter(earlier -> earlier.words().equals(sentence)).findFirst().orElse(null);
+            if (match == null) {
                 fresh.add(sentence);
+            } else {
+                unmatched.remove(match);
+                current.add(match);
             }
         }
 
         List<List<String>> sentences = new ArrayList<>();
         List<String> rejected = new ArrayList<>();
         for (List<String> sentence : fresh) {
-            // Rejected sentences count as handled too, so their error is reported only once.
-            handled.add(sentence);
-            List<String> part = newPart(sentence, unmatched);
-            if (part.isEmpty()) {
-                continue;
-            }
+            HandledSentence earlier = takeRelated(sentence, unmatched);
+            List<String> covered = earlier == null ? List.of() : earlier.covered();
+            List<String> part = newPart(sentence, covered);
             try {
                 part.forEach(Word::validateTextLength);
-                sentences.add(part);
+                if (!part.isEmpty()) {
+                    sentences.add(part);
+                    covered = sentence;
+                }
             } catch (IllegalArgumentException e) {
                 rejected.add(e.getMessage());
             }
+            // Remember rejected text to suppress repeated errors, but never mark its
+            // unsaved words as covered. Shortening retains the longer saved prefix.
+            current.add(new HandledSentence(sentence, covered));
         }
+        handled.clear();
+        handled.addAll(current);
         saving.addAll(sentences);
         return new Batch(List.copyOf(sentences), List.copyOf(rejected), false);
     }
 
     /**
-     * The part of {@code sentence} whose pairs are not saved yet. A sentence that continues an
-     * edited-away handled one (Enter, then the period deleted and more typed) saves only from
-     * that sentence's last word on; one that a handled sentence already covers saves nothing.
-     * Any other sentence, including a real edit such as "cats" to "dogs", is saved whole.
+     * Matches a shortened or continued sentence to one unmatched occurrence from the previous
+     * field contents. Its coverage follows that occurrence instead of becoming a historical
+     * sentence that could swallow a newly typed repetition.
      */
-    private static List<String> newPart(List<String> sentence, List<List<String>> unmatched) {
-        List<String> longest = List.of();
-        for (List<String> earlier : unmatched) {
-            if (startsWith(earlier, sentence)) {
-                return List.of(); // shortened: its words and pairs were all saved before
-            }
-            if (startsWith(sentence, earlier) && earlier.size() > longest.size()) {
-                longest = earlier;
+    private static HandledSentence takeRelated(List<String> sentence, List<HandledSentence> unmatched) {
+        HandledSentence match = null;
+        for (HandledSentence earlier : unmatched) {
+            if ((startsWith(earlier.words(), sentence) || startsWith(sentence, earlier.words()))
+                    && (match == null || earlier.words().size() > match.words().size())) {
+                match = earlier;
             }
         }
-        unmatched.remove(longest); // each earlier sentence is continued at most once
-        return longest.isEmpty() ? sentence : List.copyOf(sentence.subList(longest.size() - 1, sentence.size()));
+        unmatched.remove(match); // each occurrence can be continued or shortened only once
+        return match;
+    }
+
+    /** Returns only the words and pairs beyond this occurrence's saved or queued prefix. */
+    private static List<String> newPart(List<String> sentence, List<String> covered) {
+        if (covered.isEmpty()) {
+            return sentence;
+        }
+        if (startsWith(covered, sentence)) {
+            return List.of();
+        }
+        return startsWith(sentence, covered)
+                ? List.copyOf(sentence.subList(covered.size() - 1, sentence.size())) : sentence;
     }
 
     private static boolean startsWith(List<String> sentence, List<String> prefix) {

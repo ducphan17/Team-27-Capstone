@@ -55,6 +55,46 @@ class AutocompleteSavesTest {
     }
 
     @Test
+    void earlierVersionTypedAsANewSentenceIsSavedAgain() {
+        saves.succeeded(saves.take("the cat."));
+        saves.succeeded(saves.take("the cat sat."));
+        assertEquals(List.of(THE_CAT), saves.take("the cat sat. the cat.").sentences());
+    }
+
+    @Test
+    void shorteningARejectedSentenceSavesItsValidWords() {
+        Batch rejected = saves.take("the cat " + "a".repeat(101) + ".");
+        assertTrue(rejected.isEmpty());
+        assertEquals(1, rejected.rejected().size());
+        assertEquals(List.of(THE_CAT), saves.take("the cat.").sentences());
+    }
+
+    @Test
+    void correctingARejectedContinuationKeepsOnlyItsPreviouslySavedPrefix() {
+        saves.succeeded(saves.take("the cat."));
+        Batch rejected = saves.take("the cat sat " + "a".repeat(101) + ".");
+        assertTrue(rejected.isEmpty());
+        assertEquals(1, rejected.rejected().size());
+        assertEquals(List.of(List.of("cat", "sat")), saves.take("the cat sat.").sentences());
+        assertTrue(saves.take("the cat sat.").isEmpty());
+    }
+
+    @Test
+    void shorteningThenContinuingRetainsTheLongestSavedPrefix() {
+        saves.succeeded(saves.take("the cat sat."));
+        assertTrue(saves.take("the cat.").isEmpty());
+        assertTrue(saves.take("the cat sat.").isEmpty());
+        assertEquals(List.of(List.of("sat", "down")), saves.take("the cat sat down.").sentences());
+    }
+
+    @Test
+    void shorteningOneOccurrenceDoesNotCoverAnotherNewSentence() {
+        saves.succeeded(saves.take("the cat sat."));
+        assertEquals(List.of(THE_CAT), saves.take("the cat. the cat.").sentences());
+        assertTrue(saves.take("the cat. the cat.").isEmpty());
+    }
+
+    @Test
     void continuingASavedSentenceSavesOnlyTheNewPairs() {
         saves.take(AutocompleteInput.withEndMark("puppies love cats")); // Enter
         // Period deleted and more typed: only cats -> and -> dogs is new.
