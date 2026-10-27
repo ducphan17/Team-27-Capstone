@@ -20,9 +20,10 @@ import java.util.regex.Pattern;
  */
 public class Tokenizer {
 
-    private static final Pattern SENTENCE_END = Pattern.compile("[.!?]+");
+    // Splits on . ! ? unless the period is directly between two digits (e.g., 3.14)
+    private static final Pattern SENTENCE_END = Pattern.compile("(?<!\\d)[.!?]+|[.!?]+(?!\\d)");
     /** Anything that is not a letter, digit, apostrophe, or whitespace. */
-    private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s]");
+    private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s.\\-]");
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     /**

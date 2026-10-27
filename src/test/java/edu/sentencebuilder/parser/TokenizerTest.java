@@ -6,6 +6,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 
 class TokenizerTest {
 
@@ -57,5 +58,56 @@ class TokenizerTest {
     void whitespaceAndPunctuationOnlyInputReturnsNoSentences() {
         assertTrue(tokenizer.tokenize("   \n\t  ").isEmpty());
         assertTrue(tokenizer.tokenize(" ... !? , ").isEmpty());
+    }
+
+    @Test
+    void testTrailAndLeadingPunctuation() {
+        // Ensures punctuation attached to a word is stripped cleanly
+        String input = "\"Wait,\" she said. (Really?)";
+        List<List<String>> expected = List.of(
+                List.of("wait", "she", "said"),
+                List.of("really")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testContractionsAreKeptIntact() {
+        // Ensures the apostrophe doesn't split the word into "don" and "t"
+        String input = "Don't say it's impossible.";
+        List<List<String>> expected = List.of(
+                List.of("don't", "say", "it's", "impossible")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testHyphenatedWords() {
+        // Ensures compound words remain as single tokens
+        String input = "The state-of-the-art sub-system.";
+        List<List<String>> expected = List.of(
+                List.of("the", "state-of-the-art", "sub-system")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testMultipleWhitespacesAndNewLines() {
+        // Ensures tabs, newlines, and multiple spaces don't create empty string tokens
+        String input = "One \t two \n\n three.";
+        List<List<String>> expected = List.of(
+                List.of("one", "two", "three")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testAlphanumericBoundaries() {
+        // Ensures version numbers or numeric values tokenize correctly
+        String input = "Version 1.8 has 52 tests.";
+        List<List<String>> expected = List.of(
+                List.of("version", "1.8", "has", "52", "tests")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
     }
 }

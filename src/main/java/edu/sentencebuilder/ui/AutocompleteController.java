@@ -1,6 +1,6 @@
+package edu.sentencebuilder.ui;
 // Tien Phan
 
-package edu.sentencebuilder.ui;
 
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;

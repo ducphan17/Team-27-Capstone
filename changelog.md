@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.9**
+Current version: **2.0**
 
 ## Instructions for future updates
 
@@ -30,6 +30,19 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.0 — 2026-10-27
+
+**Author:** Arath Brosig
+
+### Changes
+- **'AutocompleteController.java':** Integrated the new 'AutocompleteSaves' and 'ExecutorService' background threading achitecture to handle predictive suggestion and database writes safely. Resolved task-identity crashes and self-looping bigram pairs by utilizing state-tracking variables ('lookupGeneration') and 'PauseTransition' for debounced typing delays.
+- **'Tokenizer.java':** Refind regular expressions ('SENTENCE_END' and 'STRIP') to preserve intra-word punctuation. Contractions (e.g., "don't"), hyphenated compounds (e.g., "state-of-the-art"), and decimal numbers (e.g., "1.8") now remain intact as single tokens, while trailing punctuation is correctly stripped.
+
+### Verification
+
+- **Tokenizer Tests:** Added 5 new edge-case tests to 'TokenizerTest.java' (trailing punctuation, contractions, hyphens, multiple spaces, alphanumeric boundaries) and assertions with the tokenizer's lowercase list output. Ran 'mvn test' and verified all unit tests pass.
+- Pending verification: End-to-end testing of the Autocomplete tab in teh running JavaFX application, ensuring database inserts and UI updates trigger correctly without race conditions.
 
 ## Version 1.9 — 2026-10-27
 
