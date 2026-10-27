@@ -20,6 +20,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -413,6 +415,88 @@ class FileImporterIT {
                 JOIN word t ON t.word_id = p.to_word_id
                 ORDER BY f.text, t.text
                 """);
+    }
+
+    // Author: Paulo Nicart
+
+    private static void setImportedAt(Connection conn, int fileId, LocalDateTime when)
+            throws SQLException {
+        try (var ps = conn.prepareStatement("UPDATE source_file SET imported_at = ? WHERE file_id = ?")) {
+            ps.setTimestamp(1, Timestamp.valueOf(when));
+            ps.setInt(2, fileId);
+            assertEquals(1, ps.executeUpdate());
+        }
+    }
+
+    @Test
+    void fileFindAllReturnsMappedRecordsNewestFirstOnCallerConnection() throws SQLException {
+        FileDAO files = new FileDAO();
+
+        try (Connection conn = open()) {
+            // An empty table gives an empty (never null) list, and the caller keeps the connection.
+            assertEquals(List.of(), files.findAll(conn));
+            assertFalse(conn.isClosed(), "The caller still owns the connection");
+        }
+
+        // Real saves: the file importer path, then the production corpus service path.
+        importText(CORPUS, files);
+        new CorpusService(FileImporterIT::open, new TextImporter(), new SentenceDAO())
+                .addToCorpus(CORPUS, saveBatchSentences());
+        try (Connection conn = open()) {
+            List<SourceFile> saved = files.findAll(conn);
+            // Both imports may share one timestamp, so file_id DESC decides: the later save is first.
+            assertEquals(List.of("batch-generated", "repeat-check.txt"),
+                    saved.stream().map(SourceFile::getFilename).toList());
+            List<Object> storedIds = rows(conn, "SELECT file_id FROM source_file ORDER BY file_id DESC")
+                    .stream().map(List::getFirst).toList();
+            assertEquals(storedIds, saved.stream().map(f -> (Object) f.getFileId()).toList());
+            for (SourceFile file : saved) {
+                assertTrue(file.getFileId() > 0);
+                assertEquals(4, file.getWordCount());
+                assertEquals(2, file.getSentenceCount());
+                assertNotNull(file.getImportedAt(), "imported_at must come from the database default");
+            }
+            assertFalse(conn.isClosed());
+        }
+
+        // Controlled timestamps: two rows share one value, so file_id DESC must break the tie.
+        try (Connection conn = open()) {
+            try (var statement = conn.createStatement()) {
+                statement.executeUpdate("DELETE FROM source_file");
+            }
+            LocalDateTime tied = LocalDateTime.of(2026, 1, 1, 10, 0, 0);
+            // Insert order differs from the expected order, so neither id order nor insert order passes.
+            SourceFile tiedFirst = files.insert(conn, new SourceFile("tied-first.txt", 11, 1));
+            SourceFile oldest = files.insert(conn, new SourceFile("oldest.txt", 22, 2));
+            SourceFile newest = files.insert(conn, new SourceFile("newest.txt", 33, 3));
+            SourceFile tiedSecond = files.insert(conn, new SourceFile("tied-second.txt", 44, 4));
+            setImportedAt(conn, tiedFirst.getFileId(), tied);
+            setImportedAt(conn, tiedSecond.getFileId(), tied);
+            setImportedAt(conn, oldest.getFileId(), tied.minusHours(1));
+            setImportedAt(conn, newest.getFileId(), tied.plusHours(1));
+
+            List<SourceFile> ordered = files.findAll(conn);
+            assertEquals(List.of("newest.txt", "tied-second.txt", "tied-first.txt", "oldest.txt"),
+                    ordered.stream().map(SourceFile::getFilename).toList());
+            assertTrue(tiedSecond.getFileId() > tiedFirst.getFileId());
+
+            SourceFile top = ordered.getFirst();
+            assertEquals(newest.getFileId(), top.getFileId());
+            assertEquals(33, top.getWordCount());
+            assertEquals(3, top.getSentenceCount());
+            assertEquals(tied.plusHours(1), top.getImportedAt());
+            assertEquals(tiedSecond.getFileId(), ordered.get(1).getFileId());
+            assertEquals(44, ordered.get(1).getWordCount());
+            assertEquals(4, ordered.get(1).getSentenceCount());
+            assertEquals(tied, ordered.get(1).getImportedAt());
+            assertEquals(tied, ordered.get(2).getImportedAt());
+            SourceFile last = ordered.getLast();
+            assertEquals(oldest.getFileId(), last.getFileId());
+            assertEquals(22, last.getWordCount());
+            assertEquals(2, last.getSentenceCount());
+            assertEquals(tied.minusHours(1), last.getImportedAt());
+            assertFalse(conn.isClosed());
+        }
     }
 
     // Tien Phan

@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.0**
+Current version: **2.1**
 
 ## Instructions for future updates
 
@@ -30,6 +30,27 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.1 — 2026-10-27
+
+**Author:** Paulo Nicart
+
+**Checkpoint:** `FileDAO.findAll` connection overload and MySQL integration verification.
+
+### Changes
+
+- **`FileDAO.java`:** Added a `findAll(Connection)` overload that queries `source_file` ordered newest first (`ORDER BY imported_at DESC, file_id DESC`), maps rows with `mapRow(ResultSet)`, leaves the caller-owned connection open, and wraps SQL errors in `DataAccessException`. The existing no-argument `findAll()` now opens its own connection via `Database.getConnection()` and delegates to `findAll(Connection)`, allowing isolated integration tests to verify the query without application credentials.
+- **`FileImporterIT.java`:** Added `fileFindAllReturnsMappedRecordsNewestFirstOnCallerConnection` (bringing the integration suite from 13 to 14 MySQL integration tests) and a `setImportedAt` test helper. Verifies that `FileDAO.findAll(Connection)`:
+  - Returns an empty list on an empty `source_file` table and leaves the caller's connection open.
+  - Returns mapped `SourceFile` records (`file_id`, `filename`, `word_count`, `sentence_count`, and database-default `imported_at`) newest first after both a file import (`repeat-check.txt`) and a `CorpusService.addToCorpus` import (`batch-generated`).
+  - Orders rows by `imported_at DESC, file_id DESC` under controlled timestamps, using `file_id DESC` to break ties when `imported_at` timestamps are identical even when inserted out of timestamp order.
+- **`README.md` / `changelog.md`:** Updated the MySQL integration test count from 13 to 14, documented the `FileDAO.findAll(Connection)` overload and integration check, and marked `FileDAO.findAll` as verified against MySQL.
+
+### Verification
+
+- Ran `mvn clean test` and `mvn -Pdb-tests verify` against the isolated `sentencebuilder_test` MySQL database: all 103 unit tests and 14 MySQL integration tests passed, with zero failures, errors, or skipped tests.
+- `git diff --check`: passes with no whitespace or formatting issues.
+- Remaining work: remaining Tokenizer edge cases (abbreviations, em-dashes, quotes after periods, broader number formats, ellipses); no UI tab calls `FileDAO.findAll` yet (only needed if an import-history view is added).
 
 ## Version 2.0 — 2026-10-27
 
