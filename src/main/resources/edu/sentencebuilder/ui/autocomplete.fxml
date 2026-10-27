@@ -9,10 +9,10 @@
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="edu.sentencebuilder.ui.AutocompleteController" spacing="12">
     <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-    <Label text="Type a sentence. After a space, comma, or period, suggestions for the last word appear below. Each sentence is saved when it ends with . ! or ?, or when you press Enter."
+    <Label text="Type a sentence. Words that often follow the last word you typed appear below; click one to add it. Sentences are saved when they end with . ! or ?. Press Enter to end the current sentence."
            wrapText="true"/>
     <TextField fx:id="inputField" promptText="Start typing..."/>
-    <Label fx:id="suggestionsLabel" text="Suggestions appear after a space, comma, or period." wrapText="true"/>
+    <Label fx:id="suggestionsLabel" text="Suggestions appear as you type a word that has been followed before." wrapText="true"/>
     <ListView fx:id="suggestionList" VBox.vgrow="ALWAYS"/>
     <!-- Shows what was saved last, or why a save failed. -->
     <Label fx:id="statusLabel" wrapText="true"/>

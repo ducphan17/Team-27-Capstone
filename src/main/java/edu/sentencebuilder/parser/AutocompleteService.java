@@ -49,6 +49,7 @@ public final class AutocompleteService {
      *
      * @param sentences one list of lowercase words per sentence; empty lists are skipped
      * @throws IllegalArgumentException if any word exceeds the length limit; nothing is saved
+     * @throws SQLException only if nothing was committed, so retrying never counts twice
      */
     public void recordSentences(List<List<String>> sentences) throws SQLException {
         // Reject oversized words before opening a connection, as the importer does.
@@ -57,29 +58,40 @@ public final class AutocompleteService {
             return;
         }
 
-        try (Connection conn = connections.open()) {
+        Connection conn = connections.open();
+        try {
             conn.setAutoCommit(false);
-            try {
-                for (List<String> sentence : sentences) {
-                    // Words are saved before pairs, because pairs need word IDs.
-                    Integer previousId = null;
-                    for (String word : sentence) {
-                        int wordId = words.insertIfAbsent(conn, word);
-                        if (previousId != null) {
-                            pairs.incrementUserCount(conn, previousId, wordId);
-                        }
-                        previousId = wordId;
+            for (List<String> sentence : sentences) {
+                // Words are saved before pairs, because pairs need word IDs.
+                Integer previousId = null;
+                for (String word : sentence) {
+                    int wordId = words.insertIfAbsent(conn, word);
+                    if (previousId != null) {
+                        pairs.incrementUserCount(conn, previousId, wordId);
                     }
+                    previousId = wordId;
                 }
-                conn.commit();
-            } catch (SQLException | RuntimeException error) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackError) {
-                    error.addSuppressed(rollbackError);
-                }
-                throw error;
             }
+            conn.commit();
+        } catch (SQLException | RuntimeException error) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackError) {
+                error.addSuppressed(rollbackError);
+            }
+            try {
+                conn.close();
+            } catch (SQLException closeError) {
+                error.addSuppressed(closeError);
+            }
+            throw error;
+        }
+        // The counts are committed. A failure to close must not report a failed save:
+        // the caller would retry it and count every pair twice.
+        try {
+            conn.close();
+        } catch (SQLException ignored) {
+            // Nothing to undo; the driver discards the broken connection.
         }
     }
 }

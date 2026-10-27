@@ -13,56 +13,67 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutocompleteInputTest {
 
-    private static Optional<String> type(String oldText, String newText) {
-        return AutocompleteInput.completedWord(oldText, newText);
+    private static Optional<String> context(String text) {
+        return AutocompleteInput.contextWord(text);
     }
 
     @Test
-    void spaceOrCommaFinishesAWord() {
-        assertEquals(Optional.of("the"), type("the", "the "));
-        assertEquals(Optional.of("cat"), type("the cat", "the cat,"));
-        assertEquals(Optional.of("sat"), type("the cat, sat", "the cat, sat "));
+    void suggestionsBelongToTheLastWordTypedWithOrWithoutASpace() {
+        assertEquals(Optional.of("puppies"), context("puppies"));
+        assertEquals(Optional.of("puppies"), context("puppies "));
+        assertEquals(Optional.of("chase"), context("puppies chase,"));
+        assertEquals(Optional.of("pupp"), context("pupp")); // looked up; usually has no followers
     }
 
     @Test
-    void wordThatEndsASentenceGetsNoSuggestions() {
-        assertTrue(type("the cat", "the cat.").isEmpty());
-        assertTrue(type("hi!", "hi! ").isEmpty());
-        assertEquals(Optional.of("it"), type("the cat. it", "the cat. it "));
+    void backspacingTheSpaceKeepsTheSameWord() {
+        assertEquals(context("puppies chase "), context("puppies chase"));
+        assertEquals(Optional.of("chas"), context("puppies chas"));
+        assertTrue(context("").isEmpty());
+        assertTrue(context("  ").isEmpty());
     }
 
     @Test
-    void secondTriggerAfterAFinishedWordFinishesNothing() {
-        assertTrue(type("the ", "the  ").isEmpty());
-        assertTrue(type("the,", "the, ").isEmpty());
-        assertTrue(type("the.", "the. ").isEmpty());
-        assertTrue(type("", " ").isEmpty());
-    }
-
-    @Test
-    void backspacingEditingOrTypingInsideAWordFinishesNothing() {
-        assertTrue(type("the cat s", "the cat ").isEmpty());
-        assertTrue(type("the cat, ", "the cat,").isEmpty());
-        assertTrue(type("the cat ", "the bat ").isEmpty());
-        assertTrue(type("the ca", "the cat").isEmpty());
-        assertTrue(type("the", "").isEmpty());
+    void noSuggestionsRightAfterASentenceEnds() {
+        assertTrue(context("the cat.").isEmpty());
+        assertTrue(context("the cat. ").isEmpty());
+        assertTrue(context("the cat!").isEmpty());
+        assertTrue(context("why not? ").isEmpty());
+        assertEquals(Optional.of("i"), context("the cat. i"));
+        assertEquals(Optional.of("there"), context("hi! there"));
     }
 
     @Test
     void wordsAreNormalizedLikeImportedText() {
-        assertEquals(Optional.of("don't"), type("The Don’t", "The Don’t "));
-        assertEquals(Optional.of("hello"), type("'Hello'", "'Hello' "));
+        assertEquals(Optional.of("don't"), context("The Don’t "));
+        assertEquals(Optional.of("hello"), context("'Hello' "));
     }
 
     @Test
     void sentenceEndsWhenAnEndMarkIsAddedAtTheEnd() {
         assertTrue(AutocompleteInput.endsSentence("the cat", "the cat."));
         assertTrue(AutocompleteInput.endsSentence("hi", "hi!"));
+        assertTrue(AutocompleteInput.endsSentence("why", "why?"));
         assertTrue(AutocompleteInput.endsSentence("hello ", "hello ."));
         assertTrue(AutocompleteInput.endsSentence("", "Pasted text. More"));
         assertFalse(AutocompleteInput.endsSentence("the cat.", "the cat. "));
         assertFalse(AutocompleteInput.endsSentence("the cat.", "the cat"));
         assertFalse(AutocompleteInput.endsSentence("the cat ", "the. cat "));
+    }
+
+    @Test
+    void enterEndsTheLastSentenceWithAPeriod() {
+        assertEquals("puppies love cats.", AutocompleteInput.withEndMark("puppies love cats"));
+        assertEquals("puppies love cats.", AutocompleteInput.withEndMark("puppies love cats, "));
+        assertEquals("hi! there.", AutocompleteInput.withEndMark("hi! there"));
+    }
+
+    @Test
+    void enterLeavesFinishedOrEmptyTextAlone() {
+        assertEquals("the cat.", AutocompleteInput.withEndMark("the cat."));
+        assertEquals("the cat! ", AutocompleteInput.withEndMark("the cat! "));
+        assertEquals("why? ,", AutocompleteInput.withEndMark("why? ,"));
+        assertEquals("", AutocompleteInput.withEndMark(""));
     }
 
     @Test
@@ -72,37 +83,16 @@ class AutocompleteInputTest {
     }
 
     @Test
-    void correctedTypoIsNotSaved() {
-        // The field only holds the corrected text when the sentence ends.
-        assertEquals(List.of(List.of("the", "cat")), AutocompleteInput.unsavedSentences("", "The cat."));
+    void sentencesAreSplitAndNormalizedLikeImportedText() {
+        assertEquals(List.of(List.of("the", "cat"), List.of("it", "ran")), AutocompleteInput.sentences("The cat! It ran"));
     }
 
     @Test
-    void savedSentencesAreNotSavedAgain() {
-        assertEquals(List.of(List.of("it", "ran")),
-                AutocompleteInput.unsavedSentences("the cat.", "the cat. It ran."));
-        // Backspacing over a period and typing it again saves nothing new.
-        assertEquals(List.of(), AutocompleteInput.unsavedSentences("the cat.", "the cat."));
-    }
-
-    @Test
-    void editedSavedTextSavesOnlyTheLastSentence() {
-        assertEquals(List.of(List.of("it", "ran")),
-                AutocompleteInput.unsavedSentences("the cat.", "the dog. It ran."));
-    }
-
-    @Test
-    void enterSavesAnUnfinishedSentence() {
-        assertEquals(List.of(List.of("it", "ran")),
-                AutocompleteInput.unsavedSentences("the cat.", "the cat. it ran"));
-    }
-
-    @Test
-    void suggestionReplacesAPartlyTypedWordAndAddsASpace() {
-        assertEquals("the cat ", AutocompleteInput.applySuggestion("the ", "cat"));
-        assertEquals("the cat ", AutocompleteInput.applySuggestion("the ca", "cat"));
-        assertEquals("the, cat ", AutocompleteInput.applySuggestion("the,", "cat"));
-        assertEquals("cat ", AutocompleteInput.applySuggestion("", "cat"));
-        assertEquals(Optional.of("cat"), type("the xy", AutocompleteInput.applySuggestion("the xy", "cat")));
+    void suggestionIsAddedAfterTheLastWord() {
+        assertEquals("puppies chase ", AutocompleteInput.applySuggestion("puppies", "chase"));
+        assertEquals("puppies chase ", AutocompleteInput.applySuggestion("puppies ", "chase"));
+        assertEquals("puppies, chase ", AutocompleteInput.applySuggestion("puppies,", "chase"));
+        assertEquals("chase ", AutocompleteInput.applySuggestion("", "chase"));
+        assertEquals(Optional.of("chase"), context(AutocompleteInput.applySuggestion("puppies", "chase")));
     }
 }

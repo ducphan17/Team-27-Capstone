@@ -3,6 +3,7 @@ package edu.sentencebuilder.ui;
 import javafx.concurrent.Task;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
@@ -22,6 +23,25 @@ final class Background {
      */
     static <T> Task<T> run(String threadName, Callable<T> work,
                            Consumer<T> onSuccess, Consumer<Throwable> onFailure) {
+        Task<T> task = task(work, onSuccess, onFailure);
+        Thread worker = new Thread(task, threadName);
+        worker.setDaemon(true); // don't keep the JVM alive after the window closes
+        worker.start();
+        return task;
+    }
+
+    /**
+     * Runs {@code work} on {@code executor} instead of a new thread, e.g. a single-thread
+     * executor that keeps writes in order. Callbacks run on the FX thread, as above.
+     */
+    static <T> Task<T> run(Executor executor, Callable<T> work,
+                           Consumer<T> onSuccess, Consumer<Throwable> onFailure) {
+        Task<T> task = task(work, onSuccess, onFailure);
+        executor.execute(task);
+        return task;
+    }
+
+    private static <T> Task<T> task(Callable<T> work, Consumer<T> onSuccess, Consumer<Throwable> onFailure) {
         Task<T> task = new Task<>() {
             @Override
             protected T call() throws Exception {
@@ -30,10 +50,6 @@ final class Background {
         };
         task.setOnSucceeded(e -> onSuccess.accept(task.getValue()));
         task.setOnFailed(e -> onFailure.accept(task.getException()));
-
-        Thread worker = new Thread(task, threadName);
-        worker.setDaemon(true); // don't keep the JVM alive after the window closes
-        worker.start();
         return task;
     }
 

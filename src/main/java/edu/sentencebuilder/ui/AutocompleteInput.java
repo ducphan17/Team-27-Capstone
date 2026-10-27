@@ -6,14 +6,13 @@ import edu.sentencebuilder.parser.Tokenizer;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Text rules for the Autocomplete tab, kept free of JavaFX so they can be unit-tested:
- * decides when an edit finishes a word (to look up suggestions), when it finishes a
- * sentence, which sentences still need saving, and how a picked suggestion is inserted.
- * Words are normalized by the same {@link Tokenizer} the importer uses, so typed and
- * imported words match ("The" and "the" are one word).
+ * which word the suggestions belong to, when an edit ends a sentence, which sentences are
+ * new, how Enter ends a sentence, and how a picked suggestion is inserted. Words are normalized by the same
+ * {@link Tokenizer} the importer uses, so typed and imported words match ("The" and "the"
+ * are one word).
  */
 final class AutocompleteInput {
 
@@ -21,42 +20,25 @@ final class AutocompleteInput {
     static final int MAX_SUGGESTIONS = 5;
 
     private static final Tokenizer TOKENIZER = new Tokenizer();
-    private static final Pattern SENTENCE_END = Pattern.compile("[.!?]");
 
     private AutocompleteInput() {
     }
 
-    /** Space, comma, and period finish a word. */
-    static boolean isTrigger(char c) {
-        return c == ' ' || c == ',' || c == '.';
+    /** {@code . ! ?} end a sentence, as in the importer's {@link Tokenizer}. */
+    private static boolean isSentenceEnd(char c) {
+        return c == '.' || c == '!' || c == '?';
     }
 
     /**
-     * Checks whether changing the field from {@code oldText} to {@code newText} finished a
-     * word, and returns it (lowercase) so its followers can be shown. Only text added after
-     * the last finished word counts: backspacing, editing earlier text, or typing a second
-     * space returns empty. If several words arrive at once (a paste), the last one is returned.
+     * The word whose followers should be shown: the last word of the current sentence, whether
+     * or not a space follows it, so suggestions appear as soon as a known word is typed and
+     * deleting the space after it changes nothing. Empty when the sentence has no words yet or
+     * has just ended, since imported pairs never cross a sentence end.
      */
-    static Optional<String> completedWord(String oldText, String newText) {
-        if (newText == null || newText.isEmpty() || !isTrigger(newText.charAt(newText.length() - 1))) {
-            return Optional.empty();
-        }
-        String confirmed = confirmedPart(oldText == null ? "" : oldText);
-        if (!newText.startsWith(confirmed) || newText.length() == confirmed.length()) {
-            return Optional.empty();
-        }
-
-        // The text between the previous trigger and the new one, plus the trigger: "cat " or "hi! ".
-        String withoutTrigger = newText.substring(0, newText.length() - 1);
-        String lastToken = newText.substring(confirmedPart(withoutTrigger).length());
-        if (SENTENCE_END.matcher(lastToken).find()) {
-            return Optional.empty(); // the word ended its sentence, so nothing follows it
-        }
-        List<List<String>> words = TOKENIZER.tokenize(lastToken);
-        if (words.isEmpty()) {
-            return Optional.empty(); // a second space, or punctuation with no word
-        }
-        return Optional.of(words.getLast().getLast());
+    static Optional<String> contextWord(String text) {
+        String current = text == null ? "" : text;
+        List<List<String>> words = TOKENIZER.tokenize(current.substring(finishedPart(current).length()));
+        return words.isEmpty() ? Optional.empty() : Optional.of(words.getLast().getLast());
     }
 
     /**
@@ -66,54 +48,42 @@ final class AutocompleteInput {
     static boolean endsSentence(String oldText, String newText) {
         String old = oldText == null ? "" : oldText;
         return newText != null && newText.startsWith(old)
-                && SENTENCE_END.matcher(newText.substring(old.length())).find();
+                && newText.substring(old.length()).chars().anyMatch(c -> isSentenceEnd((char) c));
+    }
+
+    /**
+     * The text with its last sentence ended, for Enter: trailing spaces and commas are dropped
+     * and a period is added. Unchanged when the last sentence already ends with
+     * {@code . ! ?} or the text has no unfinished words.
+     */
+    static String withEndMark(String text) {
+        String trimmed = text.replaceAll("[\\s,]+$", "");
+        String lastSentence = trimmed.substring(finishedPart(trimmed).length());
+        return TOKENIZER.tokenize(lastSentence).isEmpty() ? text : trimmed + ".";
     }
 
     /** The text up to and including its last {@code . ! ?}; "" if no sentence has ended. */
     static String finishedPart(String text) {
         for (int i = text.length() - 1; i >= 0; i--) {
-            if (SENTENCE_END.matcher(String.valueOf(text.charAt(i))).matches()) {
+            if (isSentenceEnd(text.charAt(i))) {
                 return text.substring(0, i + 1);
             }
         }
         return "";
     }
 
-    /**
-     * The sentences in {@code text} that have not been saved yet.
-     *
-     * @param saved the text already saved; always empty or ending at a sentence end
-     * @param text  the text to save, usually {@link #finishedPart} of the field
-     * @return one list of words per sentence. If the saved text was edited since, only
-     *         the last sentence is returned, so earlier sentences are never counted twice.
-     */
-    static List<List<String>> unsavedSentences(String saved, String text) {
-        if (text.startsWith(saved)) {
-            return TOKENIZER.tokenize(text.substring(saved.length()));
-        }
-        List<List<String>> sentences = TOKENIZER.tokenize(text);
-        return sentences.isEmpty() ? sentences : List.of(sentences.getLast());
+    /** The sentences in {@code text}, as lowercase words, split like imported text. */
+    static List<List<String>> sentences(String text) {
+        return TOKENIZER.tokenize(text);
     }
 
     /**
-     * Returns the field text after picking {@code suggestion}: any partly typed word is
-     * replaced, and a space follows so the word counts as finished.
+     * Returns the field text after picking {@code suggestion}, a follower of the last word:
+     * the suggestion is added after that word, followed by a space.
      */
     static String applySuggestion(String text, String suggestion) {
-        String prefix = confirmedPart(text == null ? "" : text);
-        if (!prefix.isEmpty() && prefix.charAt(prefix.length() - 1) != ' ') {
-            prefix += " ";
-        }
-        return prefix + suggestion + " ";
-    }
-
-    /** The text up to and including its last trigger character; "" if there is none. */
-    private static String confirmedPart(String text) {
-        for (int i = text.length() - 1; i >= 0; i--) {
-            if (isTrigger(text.charAt(i))) {
-                return text.substring(0, i + 1);
-            }
-        }
-        return "";
+        String current = text == null ? "" : text;
+        boolean needsSpace = !current.isEmpty() && !Character.isWhitespace(current.charAt(current.length() - 1));
+        return current + (needsSpace ? " " : "") + suggestion + " ";
     }
 }
