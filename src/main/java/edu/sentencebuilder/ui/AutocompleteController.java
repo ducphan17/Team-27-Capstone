@@ -112,7 +112,7 @@ public class AutocompleteController {
         }
         String sentenceMessage = null;
         if (endingSentence || AutocompleteInput.endsSentence(oldText, newText)) {
-            saveNewSentences(AutocompleteInput.finishedPart(newText));
+            saveNewSentences(endingSentence ? newText : AutocompleteInput.finishedPart(newText));
             sentenceMessage = "Sentence finished. Keep typing to start a new one.";
         }
         updateSuggestions(AutocompleteInput.contextWord(newText).orElse(null), sentenceMessage);

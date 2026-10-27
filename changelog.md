@@ -38,10 +38,12 @@ Entry template:
 ### Changes
 - **'AutocompleteController.java':** Integrated the new 'AutocompleteSaves' and 'ExecutorService' background threading achitecture to handle predictive suggestion and database writes safely. Resolved task-identity crashes and self-looping bigram pairs by utilizing state-tracking variables ('lookupGeneration') and 'PauseTransition' for debounced typing delays.
 - **'Tokenizer.java':** Refind regular expressions ('SENTENCE_END' and 'STRIP') to preserve intra-word punctuation. Contractions (e.g., "don't"), hyphenated compounds (e.g., "state-of-the-art"), and decimal numbers (e.g., "1.8") now remain intact as single tokens, while trailing punctuation is correctly stripped.
+- **Review follow-up:** Restricted decimal exceptions to periods, so `!` and `?` between digits still end sentences. Removed standalone and trailing hyphens while keeping hyphenated compounds. Shared the tokenizer's sentence-boundary lookup with Autocomplete, so decimal points neither split suggestion contexts nor save incomplete numeric prefixes. A trailing period after a digit waits for a following character or Enter to confirm the sentence end.
 
 ### Verification
 
 - **Tokenizer Tests:** Added 5 new edge-case tests to 'TokenizerTest.java' (trailing punctuation, contractions, hyphens, multiple spaces, alphanumeric boundaries) and assertions with the tokenizer's lowercase list output. Ran 'mvn test' and verified all unit tests pass.
+- **Review follow-up verification:** Added 8 regression tests covering numeric sentence boundaries, hyphen cleanup, repeated periods, decimal suggestion contexts, pasted decimals, deferred numeric periods, and typing a decimal before saving with Enter. `mvn -o clean test` passes all 103 unit tests. MySQL integration tests and the running JavaFX app were not rechecked for this follow-up.
 - Pending verification: End-to-end testing of the Autocomplete tab in teh running JavaFX application, ensuring database inserts and UI updates trigger correctly without race conditions.
 
 ## Version 1.9 — 2026-10-27

@@ -24,11 +24,6 @@ final class AutocompleteInput {
     private AutocompleteInput() {
     }
 
-    /** {@code . ! ?} end a sentence, as in the importer's {@link Tokenizer}. */
-    private static boolean isSentenceEnd(char c) {
-        return c == '.' || c == '!' || c == '?';
-    }
-
     /**
      * The word whose followers should be shown: the last word of the current sentence, whether
      * or not a space follows it, so suggestions appear as soon as a known word is typed and
@@ -42,13 +37,14 @@ final class AutocompleteInput {
     }
 
     /**
-     * True when the text typed or pasted at the end of the field contains {@code . ! ?},
-     * so a sentence has just ended. Edits earlier in the text never count.
+     * True when appending text confirms a new sentence boundary. A period after a digit
+     * waits for a following character (or Enter), since another digit would make a decimal.
+     * Edits earlier in the text never count.
      */
     static boolean endsSentence(String oldText, String newText) {
         String old = oldText == null ? "" : oldText;
         return newText != null && newText.startsWith(old)
-                && newText.substring(old.length()).chars().anyMatch(c -> isSentenceEnd((char) c));
+                && finishedPart(newText).length() > finishedPart(old).length();
     }
 
     /**
@@ -58,18 +54,19 @@ final class AutocompleteInput {
      */
     static String withEndMark(String text) {
         String trimmed = text.replaceAll("[\\s,]+$", "");
-        String lastSentence = trimmed.substring(finishedPart(trimmed).length());
+        // Enter confirms a trailing numeric period even when typing alone must defer it.
+        String lastSentence = trimmed.substring(TOKENIZER.finishedLength(trimmed));
         return TOKENIZER.tokenize(lastSentence).isEmpty() ? text : trimmed + ".";
     }
 
-    /** The text up to and including its last {@code . ! ?}; "" if no sentence has ended. */
+    /** Finished prefix, excluding decimal points and an ambiguous trailing numeric period. */
     static String finishedPart(String text) {
-        for (int i = text.length() - 1; i >= 0; i--) {
-            if (isSentenceEnd(text.charAt(i))) {
-                return text.substring(0, i + 1);
-            }
+        int end = TOKENIZER.finishedLength(text);
+        if (end == text.length() && end > 1 && text.charAt(end - 1) == '.'
+                && Character.isDigit(text.codePointBefore(end - 1))) {
+            end = TOKENIZER.finishedLength(text.substring(0, end - 1));
         }
-        return "";
+        return text.substring(0, end);
     }
 
     /** The sentences in {@code text}, as lowercase words, split like imported text. */
