@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **1.9**
+Current version: **2.0**
 
 ## Instructions for future updates
 
@@ -30,6 +30,28 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.0 — 2026-10-27
+
+**Author:** Paulo Nicart
+
+**Checkpoint:** `FileDAO.findAll` verified against MySQL.
+
+### Changes
+
+- **`FileDAO.java`:** Added `findAll(Connection)`. It runs the existing newest-first query (`ORDER BY imported_at DESC, file_id DESC`), maps rows with the existing `mapRow`, leaves the caller's connection open, and wraps `SQLException` in `DataAccessException`. The zero-argument `findAll()` now opens a connection with `Database.getConnection()` in a try-with-resources block and delegates to the overload, matching `WordDAO` and `SentenceDAO`. Behavior of the zero-argument method is unchanged.
+- **`FileImporterIT.java`:** Added `fileFindAllReturnsMappedRecordsNewestFirstOnCallerConnection` (plus a small `setImportedAt` helper), which uses only the guarded `sentencebuilder_test` connection and never calls `Database.getConnection()`. It checks an empty table; records saved by the importer path and by `CorpusService.addToCorpus` (source `batch-generated`), including a non-null `imported_at` and the `file_id DESC` order; and four rows with fixed timestamps (two tied) inserted out of order, proving the `file_id DESC` tie-breaker and the mapping of `file_id`, `filename`, `word_count`, `sentence_count`, and `imported_at`. The existing database-name and user guards are unchanged.
+- **`README.md`:** Integration test count 13 → 14, with a new `FileDAO.findAll` bullet under "Import checkpoint: database tests"; "Implemented" notes the caller-owned-connection overload; "Verification status" now says `FileDAO.findAll` is verified against MySQL in `FileImporterIT`.
+- No JavaFX UI or FXML files were changed.
+
+### Verification
+
+- **Not yet run — fill in before merging.** The authoring environment had no Maven, no `javac`, and no MySQL, so none of the checks below were executed for this entry, and no test count is recorded as passed:
+  - `mvn clean test` (expected: all 90 unit tests pass; this change adds no unit tests).
+  - `mvn -Pdb-tests verify` against `sentencebuilder_test` (expected: 90 unit tests and 14 MySQL integration tests pass, including the new one).
+  - `git diff --check` (expected: no whitespace errors).
+- Implemented but untested until those commands pass: `FileDAO.findAll(Connection)` and the delegating `findAll()`.
+- The zero-argument `findAll()` is not exercised by any automated test because it requires application credentials; it contains only connection handling and one delegating call.
 
 ## Version 1.9 — 2026-10-27
 

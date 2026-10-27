@@ -235,7 +235,7 @@ Plain `mvn test` runs unit tests only. The `db-tests` Maven profile adds Failsaf
 which runs `FileImporterIT` during `verify`. Results are in
 `target/surefire-reports` and `target/failsafe-reports`.
 
-The 13 MySQL integration tests check:
+The 14 MySQL integration tests check:
 
 * Importing `Zorvex miplex. Zorvex talvex.` twice preserves word IDs and
   `first_seen`, doubles imported counts, creates two file records, and preserves
@@ -260,6 +260,11 @@ The 13 MySQL integration tests check:
   counts unchanged. No pair crosses from one sentence into the next.
 * A failure after the new word is inserted, but before the pair is updated, rolls
   back the new word.
+* `FileDAO.findAll(Connection)` returns an empty list for an empty `source_file`
+  table, then returns real importer and `CorpusService.addToCorpus` records (source
+  `batch-generated`) newest first with every column mapped. With controlled
+  timestamps, rows sharing one `imported_at` are ordered by `file_id DESC`, and the
+  caller's connection stays open.
 
 The corpus and Autocomplete transaction checks call the production service with guarded test connections
 and injected DAO failures; they do not copy its transaction implementation.
@@ -315,7 +320,7 @@ src/main/resources/
 * **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task.
 * **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
 * **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
-* **File DAO:** `insert`, `findAll`.
+* **File DAO:** `insert`, `findAll` (also with a caller-owned connection).
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer` first version.
@@ -338,13 +343,12 @@ src/main/resources/
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * The Autocomplete tab (suggestions while typing, sentence saving, Enter, continued sentences, retries, and the pending file across a restart) was checked manually against MySQL (see `changelog.md`, v1.9).
-* `FileDAO.findAll` is implemented but not yet checked against MySQL.
-* The 13 automated MySQL integration tests cover import persistence, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
+* `FileDAO.findAll` is verified against MySQL in `FileImporterIT` through its caller-owned-connection overload; the zero-argument method only opens an application connection and delegates to it. No tab uses it yet.
+* The 14 automated MySQL integration tests cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
 
 **Still to do**
 
-* `FileDAO.findAll` (no tab uses it yet; only needed for an import-history view).
-* Tokenizer edge cases (abbreviations, hyphens/dashes, quotes after periods, numbers, ellipses).
+* An import-history view (optional). `FileDAO.findAll` is already implemented and verified against MySQL, but no tab uses it yet.
 
 Next: Tokenizer edge cases. Every tab is implemented.
 
@@ -361,4 +365,3 @@ Next: Tokenizer edge cases. Every tab is implemented.
 * **`insertIfAbsent` uses a no-op update.** It relies on `ON DUPLICATE KEY UPDATE text = word.text` rather than `INSERT IGNORE`, so existing rows and `first_seen` stay untouched and unrelated errors are not silently swallowed.
 * **`utf8mb4_bin` on `word.text`.** The default collation is accent- and case-insensitive, so the UNIQUE key would treat "café" and "cafe" as duplicates. Because the collation is binary, `ORDER BY text` sorts uppercase before lowercase, which does not matter since the tokenizer lowercases everything.
 * **Words Report edits.** `WordDAO.update` can change `text`, which has a UNIQUE key, so renaming a word to an existing one would throw `DataAccessException`. The tab keeps the Word column read-only and edits counts only.
-

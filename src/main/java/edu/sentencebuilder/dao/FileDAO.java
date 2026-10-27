@@ -50,14 +50,29 @@ public class FileDAO {
      * Must not be called on the JavaFX Application Thread.
      *
      * @throws DataAccessException if the query fails
-     */
+     * Author: Paulo Nicart
+     */ 
     public List<SourceFile> findAll() {
+        try (Connection conn = Database.getConnection()) {
+            return findAll(conn);
+        } catch (SQLException e) {
+            throw new DataAccessException("Could not load imported files", e);
+        }
+    }
+
+    /**
+     * Same as {@link #findAll()}, using the caller's connection; isolated tests never need
+     * application credentials. Leaves the connection open.
+     *
+     * @throws DataAccessException if the query fails
+     * Author: Paulo Nicart
+     */
+    public List<SourceFile> findAll(Connection conn) {
         String sql = "SELECT file_id, filename, word_count, sentence_count, imported_at "
                 + "FROM source_file ORDER BY imported_at DESC, file_id DESC";
         List<SourceFile> files = new ArrayList<>();
-        try (Connection conn = Database.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()) {
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 files.add(mapRow(rs));
             }
