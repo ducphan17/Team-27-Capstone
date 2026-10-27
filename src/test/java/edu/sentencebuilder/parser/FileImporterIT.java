@@ -425,10 +425,10 @@ class FileImporterIT {
         }
 
         AutocompleteService service = new AutocompleteService(FileImporterIT::open);
-        service.recordWord("zorvex", "miplex");   // known pair: user_count 7 -> 8
-        service.recordWord("miplex", "glorp");    // unknown word and new pair
-        service.recordWord("miplex", "glorp");    // same pair again: no duplicate word
-        service.recordWord(null, "blim");         // sentence start: word only, no pair
+        // Known pair zorvex -> miplex (user_count 7 -> 8), then an unknown word and new pair.
+        // The one-word second sentence adds a word but no pair across the sentence end.
+        service.recordSentences(List.of(List.of("zorvex", "miplex", "glorp"), List.of("blim")));
+        service.recordSentences(List.of(List.of("miplex", "glorp"))); // same pair again: no duplicate word
 
         try (Connection conn = open()) {
             // Imported rows keep their IDs, counts, and first_seen; new words have zero counts.
@@ -465,7 +465,8 @@ class FileImporterIT {
         };
         AutocompleteService service = new AutocompleteService(FileImporterIT::open, words, failingPairs);
 
-        SQLException error = assertThrows(SQLException.class, () -> service.recordWord("zorvex", "glorp"));
+        SQLException error = assertThrows(SQLException.class,
+                () -> service.recordSentences(List.of(List.of("zorvex", "glorp"))));
         assertEquals("Intentional autocomplete failure", error.getMessage());
         assertEquals(before, snapshot());
     }

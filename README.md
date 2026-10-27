@@ -255,9 +255,9 @@ The 13 MySQL integration tests check:
   connection sees no changes before the service commits.
 * An SQL failure after text import but before marking rolls back all changes.
 * A runtime failure after marking rolls back both corpus counts and flags.
-* `AutocompleteService.recordWord` adds unknown words with zero counts, adds 1 to
-  `user_count` for new and existing pairs, and leaves imported words and pair
-  counts unchanged. A word at a sentence start creates no pair.
+* `AutocompleteService.recordSentences` adds unknown words with zero counts, adds 1
+  to `user_count` for new and existing pairs, and leaves imported words and pair
+  counts unchanged. No pair crosses from one sentence into the next.
 * A failure after the new word is inserted, but before the pair is updated, rolls
   back the new word.
 
@@ -321,7 +321,7 @@ src/main/resources/
 * `Tokenizer` first version.
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
 * **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
-* **Autocomplete tab:** typing a space, comma, or period finishes a word and shows its top 5 followers (by `count + user_count`) in a background lookup; results from an older lookup are ignored. A period, `!`, or `?` ends the sentence and clears the list. Clicking a suggestion (or pressing Enter on it) replaces any partly typed word. Each finished word, typed or picked, is saved by `AutocompleteService` in one transaction: unknown words are added with zero counts, and `word_pair.user_count` goes up by 1 for the pair it completes. Words are normalized with the importer's `Tokenizer`, pairs continue across commas but not across sentence ends, and imported counts are never changed. Backspacing, editing earlier text, or typing a second space records nothing; a pasted run of words records only the last word. Saves run in typing order on one background thread.
+* **Autocomplete tab:** typing a space, comma, or period finishes a word and shows its top 5 followers (by `count + user_count`), each with its imported and typed counts, in a background lookup; results from an older lookup are ignored. Clicking a suggestion (or pressing Enter on it) replaces any partly typed word. A sentence is saved when it ends with `.`, `!`, or `?`, or when Enter is pressed in the text field (which also clears it). Saving uses the text in the field at that moment, so typos corrected before the sentence ends are never stored, and picked words are counted once. `AutocompleteService.recordSentences` saves in one transaction: unknown words are added with zero counts, and `word_pair.user_count` goes up by 1 for each pair of neighboring words. Words are normalized with the importer's `Tokenizer`, pairs continue across commas but not across sentence ends, and imported counts are never changed. Already-saved sentences are not saved again. Saves run in typing order on one background thread.
 * **Words Report tab:** loads all words in a background `Task`; sortable columns (alphabetical by default), case-insensitive filter, and in-place editing of the three counts with validation (no negatives; start/end count cannot exceed total). A failed save reverts the cell. Word text is read-only.
 * **Sentence History tab:** loads all generated sentences (newest first) in a background `Task`, shows how many times each sentence was generated, and highlights repeats (`duplicate` style class in `ui/app.css`).
 * **Auto-refresh:** `MainController` (controller for `main.fxml`) reloads Words Report and Sentence History each time their tab is opened, so imports and generated sentences show up without pressing Refresh.
@@ -332,6 +332,7 @@ src/main/resources/
 
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
+* The Autocomplete tab (suggestions, sentence saving, typo handling, and `user_count` updates) was checked manually against MySQL (see `changelog.md`, v1.9).
 * `FileDAO.findAll` is implemented but not yet checked against MySQL.
 * The 13 automated MySQL integration tests cover import persistence, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
 

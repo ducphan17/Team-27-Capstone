@@ -4,6 +4,7 @@ package edu.sentencebuilder.parser;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 
 import edu.sentencebuilder.dao.Database;
 import edu.sentencebuilder.dao.WordDAO;
@@ -11,10 +12,10 @@ import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.Word;
 
 /**
- * Saves one word the user finished on the Autocomplete tab, independently of JavaFX:
+ * Saves sentences the user finished on the Autocomplete tab, independently of JavaFX:
  * adds unknown words to {@code word} (all counts 0) and adds 1 to
- * {@code word_pair.user_count} for the pair it completes. Imported counts are never
- * changed. Both writes commit together or not at all.
+ * {@code word_pair.user_count} for each pair of neighboring words. Imported counts are
+ * never changed. All writes for one call commit together or not at all.
  */
 public final class AutocompleteService {
 
@@ -42,28 +43,33 @@ public final class AutocompleteService {
     }
 
     /**
-     * Records that {@code word} was typed or picked after {@code previousWord}.
+     * Records finished sentences: every word is added if unknown, and each pair of
+     * neighboring words in a sentence gets 1 more {@code user_count}. Pairs never cross
+     * from one sentence into the next, matching imported pairs.
      *
-     * @param previousWord the word before it in the same sentence, or {@code null} at a
-     *                     sentence start (then only an unknown {@code word} is added)
-     * @throws IllegalArgumentException if either word exceeds the length limit; nothing is saved
+     * @param sentences one list of lowercase words per sentence; empty lists are skipped
+     * @throws IllegalArgumentException if any word exceeds the length limit; nothing is saved
      */
-    public void recordWord(String previousWord, String word) throws SQLException {
+    public void recordSentences(List<List<String>> sentences) throws SQLException {
         // Reject oversized words before opening a connection, as the importer does.
-        Word.validateTextLength(word);
-        if (previousWord != null) {
-            Word.validateTextLength(previousWord);
+        sentences.forEach(sentence -> sentence.forEach(Word::validateTextLength));
+        if (sentences.stream().allMatch(List::isEmpty)) {
+            return;
         }
 
         try (Connection conn = connections.open()) {
             conn.setAutoCommit(false);
             try {
-                // Text, not remembered IDs, is passed in, so each save looks up its own IDs
-                // and never depends on an earlier save having finished.
-                int wordId = words.insertIfAbsent(conn, word);
-                if (previousWord != null) {
-                    int previousId = words.insertIfAbsent(conn, previousWord);
-                    pairs.incrementUserCount(conn, previousId, wordId);
+                for (List<String> sentence : sentences) {
+                    // Words are saved before pairs, because pairs need word IDs.
+                    Integer previousId = null;
+                    for (String word : sentence) {
+                        int wordId = words.insertIfAbsent(conn, word);
+                        if (previousId != null) {
+                            pairs.incrementUserCount(conn, previousId, wordId);
+                        }
+                        previousId = wordId;
+                    }
                 }
                 conn.commit();
             } catch (SQLException | RuntimeException error) {
