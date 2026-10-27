@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.2**
+Current version: **2.3**
 
 ## Instructions for future updates
 
@@ -30,6 +30,22 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.3 — 2026-10-27
+
+**Author:** Ben Quidlat
+
+**Checkpoint:** Manual interface check findings.
+
+### Changes
+
+- **No code changes.** Records results from running part of `docs/manual-ui-checks.md` in the app.
+
+### Verification
+
+- **Lone dash (Autocomplete):** on v2.0, typing `the cat sat - on the mat.` stored `-` as a word (total/start/end `0/0/0`) and raised `user_count` on `sat → -` and `- → on`. Already fixed on `main` by the v2.0 review follow-up (PR #11, `NON_INTERNAL_HYPHEN`), so no tokenizer change is part of this work. The `-` row stays in the local database, because words are never deleted.
+- **Performance finding (Batch Generate, not changed here):** generating 1000 sentences in the running app took several minutes with no progress indicator, so it looked frozen. Cause: each generated word calls `WordPairDAO.getWord` and `getFollowers`, and each call opens and closes its own MySQL connection (about 40 connections per 20-word sentence). Suggested follow-up for the Batch Generate / database owners: generate a batch over one shared connection or add connection pooling, and show progress like the Import tab. The app stayed responsive throughout, confirming the work runs off the JavaFX Application Thread.
+- Still open: the remaining items in `docs/manual-ui-checks.md`, for the testing lead's end-to-end pass.
 
 ## Version 2.2 — 2026-10-27
 
