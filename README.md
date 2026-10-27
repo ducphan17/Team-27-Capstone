@@ -344,7 +344,7 @@ src/main/resources/
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * The Autocomplete tab (suggestions while typing, sentence saving, Enter, continued sentences, retries, and the pending file across a restart) was checked manually against MySQL (see `changelog.md`, v1.9).
 * `FileDAO.findAll` is verified against MySQL in `FileImporterIT` through its caller-owned-connection overload; the zero-argument method only opens an application connection and delegates to it. No tab uses it yet.
-* The 14 automated MySQL integration tests cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8.
+* The 14 automated MySQL integration tests cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8 and v2.1.
 
 **Still to do**
 
