@@ -5,7 +5,8 @@ word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
 > All six tabs work: Import, Generate, Batch Generate, Autocomplete, Words Report,
-> and Sentence History. Tokenizer edge cases are next.
+> and Sentence History. Batch Generate now reuses one connection and reports progress;
+> app verification and tokenizer edge cases are next.
 > See [What works vs. what's left](#what-works-vs-whats-left).
 
 ## Setup
@@ -320,14 +321,14 @@ docs/
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
 * **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task, and an import history table (`FileDAO.findAll`, newest first, including `batch-generated` corpus additions) with the import count and total words; it reloads after each import and whenever the tab is opened.
-* **Word DAO:** `findByText`, `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
-* **Word-pair DAO:** `getFollowers`, `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
+* **Word DAO:** `findByText` (also with a caller-owned connection), `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
+* **Word-pair DAO:** `getFollowers` (also with a caller-owned connection), `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
 * **File DAO:** `insert`, `findAll` (also with a caller-owned connection).
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
 * **Generators:** `SentenceGenerator` loop with all three stop rules; `WeightedRandomGenerator`; `MostFrequentGenerator` skips a (current, next) pair already used in the sentence.
 * `Tokenizer`: keeps contractions, hyphenated compounds, and decimal numbers intact; strips standalone punctuation. `!` and `?` always end sentences, and periods between digits stay inside numbers.
 * **Generate tab:** start word (lowercased; Enter or button) + algorithm (a `ComboBox<SentenceGenerator>` shown by `getName()`, the label saved with each sentence) + Max words (1–100, default 20); generates on a background Task, saves to `generated_sentence`, shows a clear message for blank or unknown words.
-* **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. Background work saves results using one autocommit connection for inserts, retaining partial successes. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
+* **Batch Generate tab:** validates a count from 1–1000, chooses starting words weighted by `start_count`, and generates with either algorithm using the default 20-word limit. A background `Task` uses one autocommit connection for starting-word loading, all generation lookups, and inserts, retaining partial successes. A progress bar is indeterminate during setup, then updates after each successful save with `Saved X of N sentences.` Completion or failure releases the bindings and re-enables controls; partial failures show the saved rows and fraction. Empty corpora show an import-first error. Multiple selection feeds eligible results through `CorpusService` and `TextImporter`; counts, pairs, source metadata, and sentence flags commit together. Added rows show `[Added to corpus]` and are excluded from subsequent additions in the current list.
 * **Autocomplete tab:**
   * *Suggestions:* shows the top 5 followers (by `count + user_count`) of the last word typed, with their imported and typed counts, as soon as that word has followers; no space is needed, and deleting the space after a word changes nothing. Lookups run after a 150 ms typing pause, the list is cleared at once when the word changes, older lookups are ignored, and a failed lookup is retried on the next edit. Clicking a suggestion (or Enter on it) adds it after the last word.
   * *Saving:* a sentence is saved when it ends with `.`, `!`, or `?`; Enter adds a period and keeps the text, so typing on starts a new sentence. Saving uses the text at that moment, so corrected typos are never stored and picked words count once. `AutocompleteService.recordSentences` saves in one transaction: unknown words get zero counts and `word_pair.user_count` goes up by 1 per neighboring pair. Pairs continue across commas, never across sentence ends; imported counts never change.
@@ -342,6 +343,7 @@ docs/
 
 **Verification status**
 
+* After the shared-connection and progress changes (v2.4), `mvn -o test` passed all 107 existing unit tests. The MySQL integration suite was not rerun. Progress display, failure recovery, and elapsed time for a 1000-sentence batch still need checks in the running app; no speedup has been measured yet.
 * Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * The Autocomplete tab (suggestions while typing, sentence saving, Enter, continued sentences, retries, and the pending file across a restart) was checked manually against MySQL (see `changelog.md`, v1.9).
@@ -351,15 +353,17 @@ docs/
 
 **Still to do**
 
+* Verify Batch Generate progress with both algorithms, measure a 1000-sentence batch, check partial results and control recovery when MySQL stops during generation, and recheck Add selected to corpus.
 * The open checks in [`docs/manual-ui-checks.md`](docs/manual-ui-checks.md).
 * Tokenizer edge cases (abbreviations, em-dashes, quotes after periods, broader number formats, ellipses).
 
-Next: Tokenizer edge cases. Every tab is implemented.
+Next: verify the Batch Generate changes in the running app, then address tokenizer edge cases. Every tab is implemented.
 
 ## Design notes
 
 * **`Launcher` class.** If the main class extends `Application` and JavaFX is on the classpath, the JVM aborts with "JavaFX runtime components are missing". A plain `main` that calls `MainApp.main()` skips that check, so the app runs from any IDE without `module-info.java`.
 * **`WordStatsSource` + `Follower`.** Generators depend on this interface, not on DAOs, so tests use an in-memory fake. `getFollowers` returns `Follower(text, count, userCount)` rather than `WordPair` so generators work with words, not database IDs.
+* **Batch connection ownership.** Batch Generate opens and closes one connection on its worker thread. A `WordStatsSource` adapter uses the connection-aware DAO overloads, which close only query resources. Autocommit keeps each saved sentence if a later operation fails. Progress uses `Task.updateProgress` and `updateMessage`, so the worker never edits controls directly.
 * **`DataAccessException`.** `WordStatsSource` methods can't throw `SQLException`, so DAO code wraps it in this unchecked exception; it surfaces through the Task's `onFailed`. The `findAll`, `insertIfAbsent`, `update`, `incrementUserCount`, and `markAddedToCorpus` methods follow this convention. `findByText`, `FileDAO.insert`, `SentenceDAO.insert`, and the importer's `upsertCounts` methods still declare `throws SQLException`.
 * **Transactional import.** `WordDAO.upsertCounts`, `WordPairDAO.upsertCounts`, and `FileDAO.insert` take the importer's `Connection` instead of opening their own, so one import commits or rolls back as a unit. Words are saved before pairs because pairs need word IDs.
 * **Injected `Random`.** Generators accept a `Random` so tests can seed it and get repeatable results.

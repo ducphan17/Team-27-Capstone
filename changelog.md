@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.3**
+Current version: **2.4**
 
 ## Instructions for future updates
 
@@ -30,6 +30,26 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.4 — 2026-10-31
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Shared database connection and progress reporting for Batch Generate.
+
+### Changes
+
+- **`WordDAO.java` / `WordPairDAO.java`:** Added `findByText(Connection, String)` and `getFollowers(Connection, String)` overloads. They close statements and result sets while leaving the caller's connection open. Existing methods open their own connection and delegate, preserving their existing signatures and error handling.
+- **`BatchGenerateController.java`:** Starting-word loading, word and follower lookups, and sentence inserts now share one connection per batch, addressing the repeated connection creation reported in v2.3. A `WordStatsSource` adapter routes generator reads through that connection. Autocommit retains earlier successful saves if a later operation fails, and the returned results contain those saved rows.
+- **`BatchGenerateController.java` / `batch_generate.fxml`:** Added a progress bar and a dedicated background `Task`. Progress is indeterminate during setup and updates after each saved sentence with `Saved X of N sentences.` The success and failure handlers release bindings and re-enable controls; partial failures show the saved fraction and error. Added comments explaining connection ownership, progress updates, and partial results.
+- **`README.md`:** Documented the shared connection, progress display, and remaining verification.
+
+### Verification
+
+- Ran `mvn -o test` after the final code changes: all 107 existing unit tests passed, with zero failures, errors, or skipped tests. No new tests were added for this checkpoint.
+- `git diff --check` passed.
+- Pending: run the JavaFX app with MySQL to check progress and completion with both algorithms, measure a 1000-sentence batch, interrupt MySQL during generation to verify partial results and control recovery, and confirm Add selected to corpus still works. The existing unit suite does not verify these interface or database behaviors, and no performance improvement has been measured yet.
+- The MySQL integration suite was not rerun for this checkpoint.
 
 ## Version 2.3 — 2026-10-27
 

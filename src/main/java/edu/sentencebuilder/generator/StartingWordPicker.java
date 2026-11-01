@@ -12,7 +12,7 @@ public final class StartingWordPicker {
     }
 
     public static String pick(List<Word> words, Random random){
-        //use long becase the sum can exceed the range of one integer
+        //using long because the sum can exceed the range of one integer
         long totalWeight = 0;
 
         for (Word word : words) {

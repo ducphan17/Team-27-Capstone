@@ -11,23 +11,41 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import edu.sentencebuilder.model.Word;
 import edu.sentencebuilder.model.ImportedWordCounts;
+import edu.sentencebuilder.model.Word;
 
 /**
  * Reads and writes the {@code word} table. All SQL uses PreparedStatement.
  * Must only be called from background threads, never the JavaFX Application Thread.
  */
 public class WordDAO {
-
-    /** Looks up a word by its exact (lowercase) text. */
+    //Aalvee
+    /** Looks up a word using a connection owned by this method. */
     public Optional<Word> findByText(String text) throws SQLException {
-        String sql = "SELECT word_id, text, total_count, start_count, end_count, first_seen FROM word WHERE text = ?";
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = Database.getConnection()) {
+            return findByText(conn, text);
+        }
+    }
+
+    /** Uses the caller's connection and leaves it open for further lookups. */
+    public Optional<Word> findByText(Connection conn, String text)
+            throws SQLException {
+
+        String sql = """
+                SELECT word_id, text, total_count, start_count,
+                       end_count, first_seen
+                FROM word
+                WHERE text = ?
+                """;
+
+        // Close the statement and result set, but keep the shared connection open.
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, text);
+
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(mapRow(rs)) : Optional.empty();
+                return rs.next()
+                        ? Optional.of(mapRow(rs))
+                        : Optional.empty();
             }
         }
     }
@@ -99,6 +117,7 @@ public class WordDAO {
         }
     }
 
+    //Aalvee
     // Inserts new words or adds imported counts to existing words
     // Uses the caller's connection so the importer can save words, pairs, and
     // the file record in one transaction.
