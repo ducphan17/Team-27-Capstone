@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.4**
+Current version: **2.5**
 
 ## Instructions for future updates
 
@@ -30,6 +30,25 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.5 — 2026-11-01
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Batch Generate PR review fixes.
+
+### Changes
+
+- **`BatchGenerateController.java`:** Setup and first-save failures now propagate to the task failure handler, showing `Could not generate: …` and preserving the previous batch. Failures after confirmed saves still return partial results. A connection-close failure after all requested inserts succeed no longer reports a failed batch. Removed the initial status/progress assignments that were immediately replaced by task bindings.
+- **`WordPairDAO.java` / `WordDAO.java`:** Moved the connection-scoped generator adapter into `WordPairDAO.using(Connection)`, keeping lookup exception handling in the DAO. Restored the exact lowercase lookup description in `findByText(String)` Javadoc.
+- **Tests:** Added six tests exercising production batch failure and progress logic with injectable database dependencies, and two tests for the scoped DAO source's connection ownership and error translation. Tests require neither MySQL nor a running JavaFX toolkit.
+- **Documentation:** Updated README behavior and test counts. Updated manual checks for progress, preservation of previous results, and before/after timing of 1000-sentence batches.
+
+### Verification
+
+- `mvn -o test`: 115 tests passed, with zero failures, errors, or skipped tests.
+- `git diff --check` passed.
+- Pending: running-app progress/failure checks, MySQL integration tests, and before/after timing. No measured speedup is claimed.
 
 ## Version 2.4 — 2026-10-31
 

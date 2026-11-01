@@ -21,9 +21,12 @@ tick each box, and record results and the date in `changelog.md`.
 
 ## Batch Generate (pending since changelog v1.8)
 
+- [ ] Generate a batch with each algorithm. The progress bar updates with saved counts, reaches 100% on completion, and resets for the next batch.
+- [ ] Time 1000-sentence batches on the version before connection reuse and on the current version, against the same corpus, algorithm, and machine. Keep corpus additions off, run three times per version, and record durations and the median in the changelog. Confirm all 1000 results were saved each time.
+
 - [ ] Type `0`, `1001`, `abc`, and an empty value into Number of sentences, then press Generate. Each shows "Number of sentences must be a whole number from 1 to 1000." and nothing is generated.
-- [ ] Stop MySQL, press Generate. The status shows "Could not generate: …" or "Saved 0 of N sentences. …", and Generate, the count, and the algorithm box are usable again.
-- [ ] Partial failure: generate 1000 sentences and stop MySQL while "Generating and saving…" is shown. The status reads "Saved X of 1000 sentences. …" and the list shows only the X saved rows. Sentence History has exactly those X new rows.
+- [ ] Stop MySQL, press Generate. The status shows "Could not generate: …", the previous batch remains visible, and Generate, the count, and the algorithm box are usable again.
+- [ ] Partial failure: generate 1000 sentences and stop MySQL after "Saved X of 1000 sentences." shows at least one saved sentence. The status reads "Saved X of 1000 sentences. …" and the list shows only the X saved rows. Sentence History has exactly those X new rows.
 - [ ] Select some results and press Add selected. They show `[Added to corpus]`. Select only those rows: Add selected stays disabled. Select a mix: only the new ones are added (the status count matches).
 
 ## Autocomplete (pending since changelog v1.9 and v2.0)

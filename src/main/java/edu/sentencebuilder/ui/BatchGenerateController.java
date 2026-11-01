@@ -3,12 +3,10 @@
 package edu.sentencebuilder.ui;
 
 import edu.sentencebuilder.dao.Database;
-import edu.sentencebuilder.dao.DataAccessException;
 import edu.sentencebuilder.dao.SentenceDAO;
 import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.generator.MostFrequentGenerator;
-import edu.sentencebuilder.generator.Follower;
 import edu.sentencebuilder.generator.SentenceGenerator;
 import edu.sentencebuilder.generator.StartingWordPicker;
 import edu.sentencebuilder.generator.WeightedRandomGenerator;
@@ -33,7 +31,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -58,7 +55,7 @@ public class BatchGenerateController {
      * Carries successfully saved rows even if a later sentence fails.
      * This prevents saved results from disappearing after a partial failure.
      */
-    private record BatchResult(
+    record BatchResult(
             List<GeneratedSentence> sentences,
             Exception failure) {
     }
@@ -135,7 +132,7 @@ public class BatchGenerateController {
 
         Task<BatchResult> task = new Task<>() {
             @Override
-            protected BatchResult call() {
+            protected BatchResult call() throws Exception {
                 // Indeterminate progress while opening the connection/loading starters.
                 updateProgress(-1, 1);
                 updateMessage("Loading starting words…");
@@ -150,8 +147,6 @@ public class BatchGenerateController {
         };
 
         setBusy(true);
-        progressBar.setProgress(-1);
-        statusLabel.setText("Starting batch…");
 
         // Bind before starting so even a quick task is handled correctly.
         progressBar.progressProperty().bind(task.progressProperty());
@@ -180,7 +175,7 @@ public class BatchGenerateController {
         });
 
         task.setOnFailed(event -> {
-            // Also release bindings and controls after an unexpected task failure.
+            // Setup or first-save failures leave the previous batch visible.
             progressBar.progressProperty().unbind();
             statusLabel.textProperty().unbind();
 
@@ -204,15 +199,29 @@ public class BatchGenerateController {
     private BatchResult generateBatch(
             int count,
             String algorithm,
-            BiConsumer<Integer, Integer> reportProgress) {
+            BiConsumer<Integer, Integer> reportProgress) throws Exception {
+        return generateBatch(count, algorithm, reportProgress,
+                Database::getConnection, new WordDAO(), new SentenceDAO());
+    }
+
+    /** Opens one batch connection; tests can supply failures without a database. */
+    @FunctionalInterface
+    interface ConnectionFactory {
+        Connection open() throws SQLException;
+    }
+
+    /** Runs the production batch logic with injectable database dependencies. */
+    static BatchResult generateBatch(
+            int count, String algorithm,
+            BiConsumer<Integer, Integer> reportProgress,
+            ConnectionFactory connections, WordDAO words, SentenceDAO sentences)
+            throws Exception {
 
         List<GeneratedSentence> saved = new ArrayList<>();
-        WordDAO words = new WordDAO();
         WordPairDAO pairs = new WordPairDAO(words);
-        SentenceDAO sentences = new SentenceDAO();
         Random random = new Random();
 
-        try (Connection conn = Database.getConnection()) {
+        try (Connection conn = connections.open()) {
             // Each successful insert stays saved if a later sentence fails.
             conn.setAutoCommit(true);
 
@@ -222,29 +231,8 @@ public class BatchGenerateController {
                         "No starting words available. Import some text first.");
             }
 
-            // Generators still depend only on WordStatsSource.
-            // This adapter routes their lookups through the batch's connection.
-            WordStatsSource source = new WordStatsSource() {
-                @Override
-                public Optional<Word> getWord(String text) {
-                    try {
-                        return words.findByText(conn, text);
-                    } catch (SQLException e) {
-                        throw new DataAccessException(
-                                "Could not load word '" + text + "'", e);
-                    }
-                }
-
-                @Override
-                public List<Follower> getFollowers(String word) {
-                    try {
-                        return pairs.getFollowers(conn, word);
-                    } catch (SQLException e) {
-                        throw new DataAccessException(
-                                "Could not load followers of '" + word + "'", e);
-                    }
-                }
-            };
+            // The DAO owns lookup error handling and leaves this connection open.
+            WordStatsSource source = pairs.using(conn);
 
             SentenceGenerator generator = "Most frequent".equals(algorithm)
                     ? new MostFrequentGenerator(source)
@@ -264,7 +252,14 @@ public class BatchGenerateController {
                 reportProgress.accept(saved.size(), count);
             }
         } catch (Exception error) {
-            // Return earlier saves so a partial failure doesn't hide them.
+            // Setup and first-save failures must preserve the previous visible batch.
+            if (saved.isEmpty()) {
+                throw error;
+            }
+            // All inserts were confirmed: a close failure cannot undo autocommit.
+            if (saved.size() == count) {
+                return new BatchResult(saved, null);
+            }
             return new BatchResult(saved, error);
         }
 

@@ -76,6 +76,32 @@ public class WordPairDAO implements WordStatsSource {
         }
     }
 
+    /**
+     * Returns generator lookups scoped to the caller's connection.
+     * Use only on its owning worker thread, before the caller closes the connection.
+     */
+    public WordStatsSource using(Connection conn) {
+        return new WordStatsSource() {
+            @Override
+            public Optional<Word> getWord(String text) {
+                try {
+                    return wordDAO.findByText(conn, text);
+                } catch (SQLException e) {
+                    throw new DataAccessException("Could not load word '" + text + "'", e);
+                }
+            }
+
+            @Override
+            public List<Follower> getFollowers(String word) {
+                try {
+                    return WordPairDAO.this.getFollowers(conn, word);
+                } catch (SQLException e) {
+                    throw new DataAccessException("Could not load followers of '" + word + "'", e);
+                }
+            }
+        };
+    }
+
     //Aalvee
     // Saves imported word-pair records using the caller's transaction.
     // The importer resolves word IDs before calling this method.

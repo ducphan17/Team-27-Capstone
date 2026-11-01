@@ -20,7 +20,7 @@ import edu.sentencebuilder.model.Word;
  */
 public class WordDAO {
     //Aalvee
-    /** Looks up a word using a connection owned by this method. */
+    /** Looks up a word by its exact (lowercase) text using a connection owned by this method. */
     public Optional<Word> findByText(String text) throws SQLException {
         try (Connection conn = Database.getConnection()) {
             return findByText(conn, text);
