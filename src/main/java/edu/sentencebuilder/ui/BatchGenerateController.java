@@ -15,6 +15,9 @@ import edu.sentencebuilder.model.GeneratedSentence;
 import edu.sentencebuilder.model.Word;
 import edu.sentencebuilder.parser.CorpusService;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -26,12 +29,15 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
 import javafx.util.StringConverter;
+import javafx.util.Duration;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -48,6 +54,7 @@ public class BatchGenerateController {
     @FXML private Button addToCorpusButton;
     @FXML private Label statusLabel;
     @FXML private ProgressBar progressBar;
+    @FXML private Label elapsedLabel;
 
     private boolean busy;
 
@@ -130,6 +137,10 @@ public class BatchGenerateController {
         // Capture control values before starting the worker thread.
         String algorithm = algorithmBox.getValue();
 
+        // A monotonic clock measures the whole batch, including database setup and saves.
+        long startedAt = System.nanoTime();
+        AtomicLong finishedAt = new AtomicLong();
+
         Task<BatchResult> task = new Task<>() {
             @Override
             protected BatchResult call() throws Exception {
@@ -137,14 +148,32 @@ public class BatchGenerateController {
                 updateProgress(-1, 1);
                 updateMessage("Loading starting words…");
 
-                return generateBatch(count, algorithm, (saved, total) -> {
-                    // Task safely forwards these updates to the FX thread.
-                    updateProgress(saved, total);
-                    updateMessage(
-                            "Saved " + saved + " of " + total + " sentences.");
-                });
+                try {
+                    return generateBatch(count, algorithm, (saved, total) -> {
+                        // Task safely forwards these updates to the FX thread.
+                        updateProgress(saved, total);
+                        updateMessage(
+                                "Saved " + saved + " of " + total + " sentences.");
+                    });
+                } finally {
+                    // Capture completion on the worker so FX rendering delays aren't timed.
+                    finishedAt.set(System.nanoTime());
+                }
             }
         };
+
+        // Timeline callbacks run on the FX thread, including while a database call waits.
+        Runnable updateElapsed = () -> {
+            long end = finishedAt.get();
+            long tenths = ((end == 0 ? System.nanoTime() : end) - startedAt)
+                    / 100_000_000L;
+            elapsedLabel.setText(String.format(Locale.ROOT, "Elapsed: %d:%02d.%d",
+                    tenths / 600, (tenths / 10) % 60, tenths % 10));
+        };
+        Timeline elapsedTimer = new Timeline(
+                new KeyFrame(Duration.millis(100), event -> updateElapsed.run()));
+        elapsedTimer.setCycleCount(Animation.INDEFINITE);
+        updateElapsed.run();
 
         setBusy(true);
 
@@ -153,6 +182,9 @@ public class BatchGenerateController {
         statusLabel.textProperty().bind(task.messageProperty());
 
         task.setOnSucceeded(event -> {
+            // Freeze the final duration on both complete and partially saved batches.
+            elapsedTimer.stop();
+            updateElapsed.run();
             // Unbind before assigning final values to the controls.
             progressBar.progressProperty().unbind();
             statusLabel.textProperty().unbind();
@@ -175,6 +207,8 @@ public class BatchGenerateController {
         });
 
         task.setOnFailed(event -> {
+            elapsedTimer.stop();
+            updateElapsed.run();
             // Setup or first-save failures leave the previous batch visible.
             progressBar.progressProperty().unbind();
             statusLabel.textProperty().unbind();
@@ -188,6 +222,7 @@ public class BatchGenerateController {
 
         Thread worker = new Thread(task, "batch-generate");
         worker.setDaemon(true);
+        elapsedTimer.play();
         worker.start();
     }
 

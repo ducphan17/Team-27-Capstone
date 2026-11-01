@@ -26,7 +26,8 @@
             onAction="#onGenerate"
         />
     </HBox>
-    <ListView fx:id="sentenceList" VBox.vgrow="ALWAYS"/>
+    <!-- Let the results shrink so the progress and timing controls keep their space. -->
+    <ListView fx:id="sentenceList" minHeight="0" VBox.vgrow="ALWAYS"/>
     <!-- Only selected rows that have not already been imported are eligible. -->
     <Button
         fx:id="addToCorpusButton"
@@ -40,8 +41,14 @@
     <ProgressBar
         fx:id="progressBar"
         progress="0.0"
+        minHeight="24"
+        prefHeight="24"
+        maxHeight="24"
         maxWidth="Infinity"
     />
+
+    <!-- The elapsed counter resets for each batch and keeps its final duration. -->
+    <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0"/>
 
     <Label
         fx:id="statusLabel"

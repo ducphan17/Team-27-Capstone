@@ -21,8 +21,10 @@ tick each box, and record results and the date in `changelog.md`.
 
 ## Batch Generate (pending since changelog v1.8)
 
+- [ ] The elapsed counter starts at `Elapsed: 0:00.0`, updates while generating (including database waits), and freezes when the batch finishes or fails. Generate again and confirm it resets. Check that more than a minute displays as `1:00.0` or higher.
+
 - [ ] Generate a batch with each algorithm. The progress bar updates with saved counts, reaches 100% on completion, and resets for the next batch.
-- [ ] Time 1000-sentence batches on the version before connection reuse and on the current version, against the same corpus, algorithm, and machine. Keep corpus additions off, run three times per version, and record durations and the median in the changelog. Confirm all 1000 results were saved each time.
+- [ ] Time 1000-sentence batches on the version before connection reuse and on the current version, against the same corpus, algorithm, and machine. Keep corpus additions off, run three times per version, and record durations and the median in the changelog. Confirm all 1000 results were saved each time. One manual comparison was reported on 2026-11-01: 153 seconds before and about 7 seconds after; the after screenshot confirms 1000 saved sentences with Most frequent. Repeated-run medians remain pending.
 
 - [ ] Type `0`, `1001`, `abc`, and an empty value into Number of sentences, then press Generate. Each shows "Number of sentences must be a whole number from 1 to 1000." and nothing is generated.
 - [ ] Stop MySQL, press Generate. The status shows "Could not generate: …", the previous batch remains visible, and Generate, the count, and the algorithm box are usable again.
