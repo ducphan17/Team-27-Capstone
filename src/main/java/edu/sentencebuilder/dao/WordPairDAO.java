@@ -29,6 +29,18 @@ public class WordPairDAO implements WordStatsSource {
 
     @Override
     public List<Follower> getFollowers(String word) {
+        try (Connection conn = Database.getConnection()) {
+            return getFollowers(conn, word);
+        } catch (SQLException e) {
+            throw new DataAccessException(
+                    "Could not load followers of '" + word + "'", e);
+        }
+    }
+
+    /** Loads followers without closing the caller's connection. */
+    public List<Follower> getFollowers(Connection conn, String word)
+            throws SQLException {
+
         String sql = """
                 SELECT t.text, p.count, p.user_count
                 FROM word_pair p
@@ -37,19 +49,21 @@ public class WordPairDAO implements WordStatsSource {
                 WHERE f.text = ?
                 ORDER BY p.count + p.user_count DESC
                 """;
-        // Tien Phan
-        try (Connection conn = Database.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, word);
             List<Follower> result = new ArrayList<>();
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    result.add(new Follower(rs.getString(1), rs.getInt(2), rs.getInt(3)));
+                    result.add(new Follower(
+                            rs.getString(1),
+                            rs.getInt(2),
+                            rs.getInt(3)));
                 }
             }
+
             return result;
-        } catch (SQLException e) {
-            throw new DataAccessException("Could not load followers of '" + word + "'", e);
         }
     }
 
@@ -62,6 +76,33 @@ public class WordPairDAO implements WordStatsSource {
         }
     }
 
+    /**
+     * Returns generator lookups scoped to the caller's connection.
+     * Use only on its owning worker thread, before the caller closes the connection.
+     */
+    public WordStatsSource using(Connection conn) {
+        return new WordStatsSource() {
+            @Override
+            public Optional<Word> getWord(String text) {
+                try {
+                    return wordDAO.findByText(conn, text);
+                } catch (SQLException e) {
+                    throw new DataAccessException("Could not load word '" + text + "'", e);
+                }
+            }
+
+            @Override
+            public List<Follower> getFollowers(String word) {
+                try {
+                    return WordPairDAO.this.getFollowers(conn, word);
+                } catch (SQLException e) {
+                    throw new DataAccessException("Could not load followers of '" + word + "'", e);
+                }
+            }
+        };
+    }
+
+    //Aalvee
     // Saves imported word-pair records using the caller's transaction.
     // The importer resolves word IDs before calling this method.
     public void upsertCounts(

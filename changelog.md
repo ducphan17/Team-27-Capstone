@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.3**
+Current version: **2.4**
 
 ## Instructions for future updates
 
@@ -30,6 +30,31 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.4 — 2026-10-31
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Batch Generate connection reuse, progress, elapsed time, and review follow-ups through 2026-11-01.
+
+### Changes
+
+- **`WordDAO.java` / `WordPairDAO.java`:** Added `findByText(Connection, String)` and `getFollowers(Connection, String)` overloads. They close statements and result sets while leaving the caller's connection open. Existing methods open their own connection and delegate, preserving their existing signatures and error handling. `WordPairDAO.using(Connection)` supplies the connection-scoped `WordStatsSource` adapter, keeping lookup exception handling in the DAO. The `findByText(String)` Javadoc describes exact lowercase lookups.
+- **`BatchGenerateController.java`:** Starting-word loading, word and follower lookups, and sentence inserts share one connection per batch, addressing repeated connection creation reported in v2.3. Autocommit retains earlier successful saves if a later operation fails. Setup and first-save failures propagate to the task failure handler, showing `Could not generate: …` and preserving the previous batch. Partial failures return confirmed saved rows; a connection-close failure after all requested inserts succeed does not report a failed batch.
+- **`BatchGenerateController.java` / `batch_generate.fxml`:** Added a progress bar and a dedicated background `Task`. Progress is indeterminate during setup and updates after each saved sentence with `Saved X of N sentences.` Success and failure handlers release bindings and re-enable controls. Removed initial status/progress assignments immediately replaced by task bindings. Added comments explaining connection ownership, progress, and partial results.
+- **Elapsed time:** Added a label displaying minutes, seconds, and tenths (`Elapsed: 0:07.3`). A JavaFX timeline updates it every 100 milliseconds. Timing uses `System.nanoTime()` and includes database setup, generation, and saves. The worker captures completion time so delayed rendering does not inflate the final duration. Success, partial failure, and task failure stop the timer and retain the duration; each valid new batch resets it.
+- **Layout:** Fixed the progress bar being compressed into a thin line after adding the timer. The bar keeps a 24-pixel height, and the results list can shrink to leave room for progress and timing controls.
+- **Tests:** Added six tests exercising production batch failure and progress logic with injectable database dependencies, and two tests for the scoped DAO source's connection ownership and error translation. Tests require neither MySQL nor a running JavaFX toolkit.
+- **Documentation:** Updated README behavior, test counts, and verification status. Updated manual checks for progress, preservation of previous results, before/after timing, and elapsed-counter updates, reset, failure, and minute formatting.
+
+### Verification
+
+- `mvn -o test` after adding the counter: all 115 unit tests passed, with zero failures, errors, or skipped tests, including the eight new regression tests. These tests do not exercise the live JavaFX timer.
+- Aalvee reported a 1000-sentence batch taking 2 minutes 33 seconds (153 seconds) before connection reuse and about 7 seconds afterward: approximately 22 times faster, or 95% less elapsed time in this comparison.
+- The first after-change screenshot shows Most frequent selected, a full progress bar, and `Generated and saved 1000 sentences.` The screenshot confirms completion; elapsed times are contributor-reported. This is one reported comparison, not a three-run median; baseline algorithm and identical corpus/machine conditions were not independently verified.
+- A later screenshot confirms the elapsed counter displaying `Elapsed: 0:01.6` after 1000 sentences were saved, and revealed the compressed progress bar. The layout fix was applied afterward; its appearance has not yet been checked in the running app.
+- Batch Generate FXML parses as valid XML after the layout fix; `git diff --check` passed. Unit tests were not rerun for the FXML-only layout fix.
+- Pending: verify the restored progress bar and live counter updates, database waits, failure, starting a second batch, and durations over one minute. Also pending: Weighted random, database-interruption recovery and partial results, Add selected to corpus, and the MySQL integration suite.
 
 ## Version 2.3 — 2026-10-27
 
