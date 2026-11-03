@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.4**
+Current version: **2.5**
 
 ## Instructions for future updates
 
@@ -30,6 +30,17 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.5 — 2026-11-02
+
+**Author:** Arath Brosig
+
+### Changes
+- **`Tokenizer.java`:** Resolved Phase 2 edge cases for text parsing. Implemented negative lookbehinds and lookaheads in `SENTENCE_END` to bypass abbreviations (e.g., "Mr.", "Dr.") and protect internal periods (e.g., "i.e.", "e.g."). Added support for trailing quotes and parentheses at sentence boundaries. Added a preprocessing step to normalize em-dashes and en-dashes into spaces to prevent compound clauses from fusing.
+- **`TokenizerTest.java`:** Added 4 new unit tests verifying abbreviations, trailing quotes, em-dashes, and ellipses.
+
+### Verification
+- Ran `mvn test`: all 121 unit tests passed.
 
 ## Version 2.4 — 2026-10-31
 
