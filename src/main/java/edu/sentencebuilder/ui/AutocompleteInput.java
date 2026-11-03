@@ -6,6 +6,7 @@ import edu.sentencebuilder.parser.Tokenizer;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Text rules for the Autocomplete tab, kept free of JavaFX so they can be unit-tested:
@@ -20,6 +21,8 @@ final class AutocompleteInput {
     static final int MAX_SUGGESTIONS = 5;
 
     private static final Tokenizer TOKENIZER = new Tokenizer();
+    // A following g or e could turn this period into the start of e.g. or i.e.
+    private static final Pattern ABBREVIATION_PREFIX = Pattern.compile("(?i)\\b[ei]\\.\\z");
 
     private AutocompleteInput() {
     }
@@ -38,7 +41,8 @@ final class AutocompleteInput {
 
     /**
      * True when appending text confirms a new sentence boundary. A period after a digit
-     * waits for a following character (or Enter), since another digit would make a decimal.
+     * or a single e/i waits for a following character (or Enter) to distinguish decimals
+     * and abbreviations from sentence ends.
      * Edits earlier in the text never count.
      */
     static boolean endsSentence(String oldText, String newText) {
@@ -54,16 +58,17 @@ final class AutocompleteInput {
      */
     static String withEndMark(String text) {
         String trimmed = text.replaceAll("[\\s,]+$", "");
-        // Enter confirms a trailing numeric period even when typing alone must defer it.
+        // Enter uses completed-text boundaries, confirming periods deferred while typing.
         String lastSentence = trimmed.substring(TOKENIZER.finishedLength(trimmed));
         return TOKENIZER.tokenize(lastSentence).isEmpty() ? text : trimmed + ".";
     }
 
-    /** Finished prefix, excluding decimal points and an ambiguous trailing numeric period. */
+    /** Finished prefix, deferring a trailing period that could start a decimal or abbreviation. */
     static String finishedPart(String text) {
         int end = TOKENIZER.finishedLength(text);
         if (end == text.length() && end > 1 && text.charAt(end - 1) == '.'
-                && Character.isDigit(text.codePointBefore(end - 1))) {
+                && (Character.isDigit(text.codePointBefore(end - 1))
+                    || ABBREVIATION_PREFIX.matcher(text).find())) {
             end = TOKENIZER.finishedLength(text.substring(0, end - 1));
         }
         return text.substring(0, end);

@@ -192,13 +192,18 @@ class TokenizerTest {
     }
 
     @Test
-    void testDeferredAmbiguousBoundaries() {
-        // Simulates live Autocomplete typing to ensure incomplete abbreviations do not trigger premature sentence boundaries
-        assertEquals(0, tokenizer.finishedLength("Use e."));
-        assertEquals(0, tokenizer.finishedLength("That is i."));
-        
-        // Confirm standard behavior: completed abbreviations suppress the boundary, while diverged ones trigger it
+    void completedSingleLetterSentencesHaveBoundaries() {
+        assertEquals("Use e.".length(), tokenizer.finishedLength("Use e."));
+        assertEquals("That is i.".length(), tokenizer.finishedLength("That is i."));
         assertEquals(0, tokenizer.finishedLength("Use e.g. "));
         assertTrue(tokenizer.finishedLength("Use e. ") > 0);
+    }
+
+    @Test
+    void singleLetterSentenceEndsAreStrippedRegardlessOfTrailingWhitespace() {
+        for (String suffix : List.of("", " ", "\n", "\r\n")) {
+            assertEquals(List.of(List.of("so", "do", "i")), tokenizer.tokenize("So do I." + suffix));
+            assertEquals(List.of(List.of("grade", "e")), tokenizer.tokenize("Grade E." + suffix));
+        }
     }
 }

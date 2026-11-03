@@ -36,11 +36,14 @@ Entry template:
 **Author:** Arath Brosig
 
 ### Changes
-- **`Tokenizer.java`:** Resolved Phase 2 edge cases for text parsing. Implemented negative lookbehinds and lookaheads in `SENTENCE_END` to bypass abbreviations (e.g., "Mr.", "Dr.") and protect internal periods (e.g., "i.e.", "e.g."). Added support for trailing quotes and parentheses at sentence boundaries. Added a preprocessing step to normalize em-dashes and en-dashes into spaces to prevent compound clauses from fusing.
-- **`TokenizerTest.java`:** Added 4 new unit tests verifying abbreviations, trailing quotes, em-dashes, and ellipses.
+- **`Tokenizer.java`:** Added abbreviation-aware sentence boundaries (e.g., "Mr.", "Dr.", "i.e.", "e.g.") and consumed trailing quotes and parentheses. Abbreviation exclusions apply only to periods, so `!` and `?` still end sentences. Em-dashes and en-dashes separate words through the existing punctuation stripping; ellipses end sentences.
+- **Original tests:** Added six tokenizer tests covering abbreviations, trailing quotes, em-dashes, ellipses, non-period boundaries after abbreviations, and ambiguous abbreviation prefixes.
+- **Post-merge fix (2026-11-03):** Moved deferral of a trailing single-letter `e.` or `i.` from the shared tokenizer into `AutocompleteInput.finishedPart`, alongside numeric-period deferral. Completed imports and saves now normalize `So do I.` to `so / do / i`, regardless of trailing whitespace. Typing a following sentence no longer queues an incorrect `i.` word or saves the previous sentence's pairs twice. Enter confirms deferred sentence ends without adding a second period; typing `e.g.` and `i.e.` still waits until the sentence is complete. Removed the unused dash-preprocessing variable and refreshed tokenizer comments.
+- **Regression tests:** Added six tests for completed single-letter words, trailing whitespace, incremental abbreviation typing, single-letter sentence saves followed by another sentence, and Enter/save-once behavior. Updated the existing boundary test to distinguish completed text from incremental typing.
 
 ### Verification
 - Ran `mvn test`: all 121 unit tests passed.
+- Post-merge fix: reproduced five failing assertions with focused regression tests before changing production code. After the fix, `mvn -o clean test` passed all 127 unit tests, with zero failures, errors, or skipped tests; `git diff --check` passed. MySQL integration tests and the running JavaFX app were not rechecked for this follow-up.
 
 ## Version 2.4 — 2026-10-31
 

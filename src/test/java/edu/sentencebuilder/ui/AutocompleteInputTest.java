@@ -122,4 +122,25 @@ class AutocompleteInputTest {
         assertEquals(Optional.of("next"), context(finished + "Next"));
         assertEquals("Version 1.8!", AutocompleteInput.finishedPart("Version 1.8! Next"));
     }
+
+    @Test
+    void ambiguousAbbreviationPrefixesWaitForFollowingText() {
+        for (String prefix : List.of("Use e", "That is i")) {
+            assertFalse(AutocompleteInput.endsSentence(prefix, prefix + "."));
+            assertEquals("", AutocompleteInput.finishedPart(prefix + "."));
+            assertTrue(AutocompleteInput.endsSentence(prefix + ".", prefix + ". "));
+            assertEquals(prefix + ".", AutocompleteInput.finishedPart(prefix + ". "));
+        }
+        assertEquals("", AutocompleteInput.finishedPart("Use e.g. "));
+        assertEquals("", AutocompleteInput.finishedPart("That is i.e. "));
+    }
+
+    @Test
+    void enterConfirmsSingleLetterSentenceEndsWithoutAddingAnotherPeriod() {
+        for (String text : List.of("So do I", "Use e")) {
+            assertEquals(text + ".", AutocompleteInput.withEndMark(text));
+            assertEquals(text + ".", AutocompleteInput.withEndMark(text + "."));
+            assertEquals(text + ". ", AutocompleteInput.withEndMark(text + ". "));
+        }
+    }
 }
