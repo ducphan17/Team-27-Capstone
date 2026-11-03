@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.4**
+Current version: **2.5**
 
 ## Instructions for future updates
 
@@ -40,7 +40,7 @@ Entry template:
 - **`TokenizerTest.java`:** Added 4 new unit tests verifying abbreviations, trailing quotes, em-dashes, and ellipses.
 
 ### Verification
-- Ran `mvn test`: all 119 unit tests passed.
+- Ran `mvn test`: all 121 unit tests passed.
 
 ## Version 2.4 — 2026-10-31
 

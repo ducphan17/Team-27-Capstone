@@ -179,4 +179,26 @@ class TokenizerTest {
         );
         assertIterableEquals(expected, tokenizer.tokenize(input));
     }
+
+    @Test
+    void testExclamationAndQuestionMarksSplitAfterAbbreviations() {
+        // Ensures abbreviation rules do not suppress non-period sentence boundaries (e.g., Dr?)
+        String input = "Is she a Dr? Yes.";
+        List<List<String>> expected = List.of(
+                List.of("is", "she", "a", "dr"),
+                List.of("yes")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testDeferredAmbiguousBoundaries() {
+        // Simulates live Autocomplete typing to ensure incomplete abbreviations do not trigger premature sentence boundaries
+        assertEquals(0, tokenizer.finishedLength("Use e."));
+        assertEquals(0, tokenizer.finishedLength("That is i."));
+        
+        // Confirm standard behavior: completed abbreviations suppress the boundary, while diverged ones trigger it
+        assertEquals(0, tokenizer.finishedLength("Use e.g. "));
+        assertTrue(tokenizer.finishedLength("Use e. ") > 0);
+    }
 }

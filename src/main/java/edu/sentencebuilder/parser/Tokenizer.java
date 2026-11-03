@@ -25,7 +25,8 @@ public class Tokenizer {
     
     // Only a single period between digits belongs to a number; ! and ? always end sentences.
     private static final Pattern SENTENCE_END = Pattern.compile(
-            ABBREVIATIONS + "(?:[!?]+[\"'”’)]*|(?<!\\p{Nd})\\.+[\"'”’)]*|\\.+(?!\\p{Nd})[\"'”’)]*)"
+            "[!?]+[\"'”’)]*|" +
+            ABBREVIATIONS + "(?!(?<=\\b[eEiI])\\.$)(?:(?<!\\p{Nd})\\.+[\"'”’)]*|\\.+(?!\\p{Nd})[\"'”’)]*)"
     );
     private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s.\\-]");
     private static final Pattern NON_INTERNAL_HYPHEN = Pattern.compile(
