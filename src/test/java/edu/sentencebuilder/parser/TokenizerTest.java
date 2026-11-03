@@ -137,4 +137,46 @@ class TokenizerTest {
         assertEquals("Version 1.8.".length(), tokenizer.finishedLength("Version 1.8. More"));
         assertEquals(2, tokenizer.finishedLength("1!2"));
     }
+
+    @Test
+    void testAbbreviationsDoNotSplitSentences() {
+        // Ensures titles and common abbreviations keep the sentence intact
+        String input = "Mr. Smith and Dr. Jones went to Washington, i.e. the capital.";
+        List<List<String>> expected = List.of(
+                List.of("mr.", "smith", "and", "dr.", "jones", "went", "to", "washington", "i.e.", "the", "capital")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testQuotesAfterPeriodsAreConsumed() {
+        // Ensures the closing quote doesn't become a garbage token in the next sentence array
+        String input = "He said \"hi.\" Then he left.";
+        List<List<String>> expected = List.of(
+                List.of("he", "said", "hi"),
+                List.of("then", "he", "left")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testEmDashesSplitWords() {
+        // Ensures true em-dashes separate words, unlike standard hyphens
+        String input = "The project—which was difficult—is finished.";
+        List<List<String>> expected = List.of(
+                List.of("the", "project", "which", "was", "difficult", "is", "finished")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
+
+    @Test
+    void testEllipsesEndSentences() {
+        // Ensures multiple periods act as a standard sentence boundary
+        String input = "Wait... what just happened?";
+        List<List<String>> expected = List.of(
+                List.of("wait"),
+                List.of("what", "just", "happened")
+        );
+        assertIterableEquals(expected, tokenizer.tokenize(input));
+    }
 }

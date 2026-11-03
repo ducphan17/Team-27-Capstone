@@ -20,9 +20,13 @@ import java.util.regex.Pattern;
  */
 public class Tokenizer {
 
+    // Bypasses common abbreviations, including internal periods in i.e. and e.g. Includes closing quotes/parentheses.
+    private static final String ABBREVIATIONS = "(?i)(?<!\\bmr)(?<!\\bmrs)(?<!\\bms)(?<!\\bdr)(?<!\\bvs)(?<!\\be\\.g)(?<!\\bi\\.e)(?!(?<=\\be)\\.g)(?!(?<=\\bi)\\.e)";
+    
     // Only a single period between digits belongs to a number; ! and ? always end sentences.
-    private static final Pattern SENTENCE_END = Pattern.compile("[!?]|(?<!\\p{Nd})\\.|\\.(?!\\p{Nd})");
-    /** Keep candidate word punctuation; sentence splitting and hyphen cleanup handle its context. */
+    private static final Pattern SENTENCE_END = Pattern.compile(
+            ABBREVIATIONS + "(?:[!?]+[\"'”’)]*|(?<!\\p{Nd})\\.+[\"'”’)]*|\\.+(?!\\p{Nd})[\"'”’)]*)"
+    );
     private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s.\\-]");
     private static final Pattern NON_INTERNAL_HYPHEN = Pattern.compile(
             "(?<![\\p{L}\\p{N}])-|-(?![\\p{L}\\p{N}])");
@@ -59,6 +63,8 @@ public class Tokenizer {
 
     private List<String> tokenizeSentence(String sentence) {
         List<String> words = new ArrayList<>();
+        // Replace em-dashes and en-dashes with spaces so compound through split into separate words
+        String noDashes = sentence.replace("—", " ").replace("–", " ");
         String cleaned = STRIP.matcher(sentence).replaceAll(" ");
         cleaned = NON_INTERNAL_HYPHEN.matcher(cleaned).replaceAll(" ");
         for (String token : WHITESPACE.split(cleaned.strip())) {
