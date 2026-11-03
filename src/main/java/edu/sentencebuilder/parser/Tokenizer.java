@@ -7,26 +7,20 @@ import java.util.regex.Pattern;
 
 /**
  * Turns raw text into sentences of lowercase words.
- * Sentences end at {@code . ! ?}, except periods between digits. Apostrophes and
+ * Sentences end at {@code . ! ?}, except periods between digits or in common abbreviations. Apostrophes and
  * hyphens inside words ("don't", "state-of-the-art") are kept; other punctuation is stripped.
- *
- * <p>TODO edge cases to handle later:
- * <ul>
- *   <li>Abbreviations: "Mr.", "Mrs.", "Dr.", "e.g." currently end a sentence.</li>
- *   <li>Em-dashes: "word—word" becomes "word" + "word".</li>
- *   <li>Quotes after periods: {@code He said "hi."} — the closing quote lands in the next sentence (then gets stripped).</li>
- *   <li>Ellipses: "wait... what" — "..." currently ends a sentence; is that right?</li>
- * </ul>
+ * Em-dashes and en-dashes separate words, ellipses end sentences, and sentence boundaries
+ * include trailing quotes and parentheses.
  */
 public class Tokenizer {
 
     // Bypasses common abbreviations, including internal periods in i.e. and e.g. Includes closing quotes/parentheses.
     private static final String ABBREVIATIONS = "(?i)(?<!\\bmr)(?<!\\bmrs)(?<!\\bms)(?<!\\bdr)(?<!\\bvs)(?<!\\be\\.g)(?<!\\bi\\.e)(?!(?<=\\be)\\.g)(?!(?<=\\bi)\\.e)";
-    
+
     // Only a single period between digits belongs to a number; ! and ? always end sentences.
     private static final Pattern SENTENCE_END = Pattern.compile(
             "[!?]+[\"'”’)]*|" +
-            ABBREVIATIONS + "(?!(?<=\\b[eEiI])\\.$)(?:(?<!\\p{Nd})\\.+[\"'”’)]*|\\.+(?!\\p{Nd})[\"'”’)]*)"
+            ABBREVIATIONS + "(?:(?<!\\p{Nd})\\.+[\"'”’)]*|\\.+(?!\\p{Nd})[\"'”’)]*)"
     );
     private static final Pattern STRIP = Pattern.compile("[^\\p{L}\\p{N}'\\s.\\-]");
     private static final Pattern NON_INTERNAL_HYPHEN = Pattern.compile(
@@ -64,8 +58,6 @@ public class Tokenizer {
 
     private List<String> tokenizeSentence(String sentence) {
         List<String> words = new ArrayList<>();
-        // Replace em-dashes and en-dashes with spaces so compound through split into separate words
-        String noDashes = sentence.replace("—", " ").replace("–", " ");
         String cleaned = STRIP.matcher(sentence).replaceAll(" ");
         cleaned = NON_INTERNAL_HYPHEN.matcher(cleaned).replaceAll(" ");
         for (String token : WHITESPACE.split(cleaned.strip())) {

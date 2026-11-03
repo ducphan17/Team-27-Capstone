@@ -5,6 +5,7 @@ package edu.sentencebuilder.ui;
 import edu.sentencebuilder.ui.AutocompleteSaves.Batch;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,6 +33,57 @@ class AutocompleteSavesTest {
         assertEquals(List.of(List.of("version", "1.8")),
                 saves.take(AutocompleteInput.withEndMark(text)).sentences());
         assertTrue(saves.take(AutocompleteInput.withEndMark(text)).isEmpty());
+    }
+
+    @Test
+    void typingAbbreviationsSavesOnlyCompletedSentences() {
+        for (String abbreviation : List.of("e.g.", "i.e.")) {
+            AutocompleteSaves fresh = new AutocompleteSaves();
+            String text = "Use " + abbreviation + " apples. Then stop.";
+            assertEquals(List.of(List.of("use", abbreviation, "apples"), List.of("then", "stop")),
+                    typeText(fresh, text));
+            assertTrue(fresh.take(text).isEmpty());
+        }
+    }
+
+    @Test
+    void typingSingleLetterSentenceEndsDoesNotSavePunctuationOrDuplicatePairs() {
+        for (String letter : List.of("I", "e")) {
+            AutocompleteSaves fresh = new AutocompleteSaves();
+            String text = "So do " + letter + ". We agree.";
+            assertEquals(List.of(List.of("so", "do", letter.toLowerCase()), List.of("we", "agree")),
+                    typeText(fresh, text));
+            assertTrue(fresh.take(text).isEmpty());
+        }
+    }
+
+    @Test
+    void enterAfterASingleLetterSavesTheNormalizedSentenceOnce() {
+        for (String suffix : List.of("", ".", ". ")) {
+            AutocompleteSaves fresh = new AutocompleteSaves();
+            String text = "So do I" + suffix;
+            List<List<String>> queued = typeText(fresh, text);
+            Batch entered = fresh.take(AutocompleteInput.withEndMark(text));
+            queued.addAll(entered.sentences());
+            fresh.succeeded(entered);
+            assertEquals(List.of(List.of("so", "do", "i")), queued);
+            assertTrue(fresh.take(AutocompleteInput.withEndMark(text)).isEmpty());
+        }
+    }
+
+    /** Follow the controller's append/save flow and record every successfully queued sentence. */
+    private static List<List<String>> typeText(AutocompleteSaves target, String text) {
+        List<List<String>> queued = new ArrayList<>();
+        for (int length = 1; length <= text.length(); length++) {
+            String oldText = text.substring(0, length - 1);
+            String newText = text.substring(0, length);
+            if (AutocompleteInput.endsSentence(oldText, newText)) {
+                Batch batch = target.take(AutocompleteInput.finishedPart(newText));
+                queued.addAll(batch.sentences());
+                target.succeeded(batch);
+            }
+        }
+        return queued;
     }
 
     @Test
