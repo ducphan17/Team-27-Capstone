@@ -6,6 +6,7 @@ import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
 import edu.sentencebuilder.model.GeneratedSentence;
+import edu.sentencebuilder.model.ImportedWordCounts;
 import edu.sentencebuilder.model.Word;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -417,8 +420,11 @@ class FileImporterIT {
                 """);
     }
 
-    // Author: Paulo Nicart
-
+    /* 
+    * Author: Paulo Nicart
+    * Helper method to set the imported_at timestamp for a given file_id in the source_file table.
+    * This method is used in tests to control the imported_at values for testing ordering and tie-breaking.
+    */ 
     private static void setImportedAt(Connection conn, int fileId, LocalDateTime when)
             throws SQLException {
         try (var ps = conn.prepareStatement("UPDATE source_file SET imported_at = ? WHERE file_id = ?")) {
@@ -428,17 +434,25 @@ class FileImporterIT {
         }
     }
 
+    /*
+    * Author: Paulo Nicart
+    * Tests that findAll returns records newest first on the caller's connection.
+     */
     @Test
     void fileFindAllReturnsMappedRecordsNewestFirstOnCallerConnection() throws SQLException {
         FileDAO files = new FileDAO();
 
+        // An empty table gives an empty (never null) list, and the caller keeps the connection.
         try (Connection conn = open()) {
-            // An empty table gives an empty (never null) list, and the caller keeps the connection.
             assertEquals(List.of(), files.findAll(conn));
             assertFalse(conn.isClosed(), "The caller still owns the connection");
         }
 
-        // Real saves: the file importer path, then the production corpus service path.
+        /* 
+        * Real saves: the file importer path, then the production corpus service path. 
+        * Ensure the database-generated IDs are stored in the SourceFile objects, and that 
+        * the imported_at timestamps are set by the database default.
+         */ 
         importText(CORPUS, files);
         new CorpusService(FileImporterIT::open, new TextImporter(), new SentenceDAO())
                 .addToCorpus(CORPUS, saveBatchSentences());
@@ -459,7 +473,7 @@ class FileImporterIT {
             assertFalse(conn.isClosed());
         }
 
-        // Controlled timestamps: two rows share one value, so file_id DESC must break the tie.
+        // Controlled timestamps: two rows share one value, so descending file_id order must break the tie.
         try (Connection conn = open()) {
             try (var statement = conn.createStatement()) {
                 statement.executeUpdate("DELETE FROM source_file");
@@ -554,4 +568,41 @@ class FileImporterIT {
         assertEquals("Intentional autocomplete failure", error.getMessage());
         assertEquals(before, snapshot());
     }
+    
+@Test
+    void benchmarkLargeWordImportPerformance() throws SQLException {
+        // Test multiple volume tiers to measure scaling behavior
+        int[] batchSizes = {5000, 10000, 20000};
+
+        for (int targetWordCount : batchSizes) {
+            List<ImportedWordCounts> benchmarkBatch = new ArrayList<>(targetWordCount);
+
+            for (int i = 0; i < targetWordCount; i++) {
+                String uniqueWord = "perf" + UUID.randomUUID().toString().substring(0, 8);
+                benchmarkBatch.add(new ImportedWordCounts(uniqueWord, 1, 1, 0));
+            }
+
+            try (Connection conn = open()) {
+                conn.setAutoCommit(false);
+                WordDAO wordDao = new WordDAO();
+
+                long startTime = System.nanoTime();
+                wordDao.upsertCounts(conn, benchmarkBatch);
+                long endTime = System.nanoTime();
+                conn.rollback(); // Rollback so benchmark leaves no database side effects
+
+                double elapsedMs = (endTime - startTime) / 1_000_000.0;
+                double msPerWord = elapsedMs / targetWordCount;
+
+                Logger logger = Logger.getLogger(FileImporterIT.class.getName());
+                logger.info(String.format("=== BENCHMARK TIER: %d WORDS ===", targetWordCount));
+                logger.info(String.format("Processed in: %.2f ms", elapsedMs));
+                logger.info(String.format("Average time per word: %.4f ms", msPerWord));
+
+                // Scale threshold check (e.g., allowance scales reasonably with size)
+                assertTrue(elapsedMs < (targetWordCount * 0.5), "Bulk import scaling performance exceeded time threshold!");
+            }
+        }
+    }
+
 }

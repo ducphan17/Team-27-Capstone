@@ -15,6 +15,10 @@
     <Button fx:id="chooseButton" text="Choose file..." onAction="#onChooseFile"/>
     <ProgressBar fx:id="progressBar" progress="0" maxWidth="Infinity"/>
     <Label fx:id="statusLabel" text="No file imported yet."/>
+
+    <!-- Paulo Nicart, added elapsed time display -->
+    <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0"/>
+
     <Label text="Import history (newest first). Batch Generate additions are listed as batch-generated."/>
     <TableView fx:id="fileTable" VBox.vgrow="ALWAYS">
         <columns>

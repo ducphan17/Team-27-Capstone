@@ -15,6 +15,11 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.stage.FileChooser;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+import java.util.Locale;
 
 import java.io.File;
 import java.time.format.DateTimeFormatter;
@@ -38,11 +43,15 @@ public class ImportController {
     @FXML private TableColumn<SourceFile, Integer> sentenceCountColumn;
     @FXML private TableColumn<SourceFile, String> importedColumn;
     @FXML private Label historyLabel;
+    @FXML private Label elapsedLabel;
 
     private final FileDAO fileDAO = new FileDAO();
     private boolean historyLoading;
     /** Set when a reload is requested mid-load, so the newest rows are not missed. */
     private boolean historyReloadPending;
+    private Timeline elapsedTimer;
+    private long startedAt;
+
 
     @FXML
     private void initialize() {
@@ -86,17 +95,36 @@ public class ImportController {
             Throwable error = task.getException();
             statusLabel.setText("Import failed: " + (error == null ? "unknown error" : error.getMessage()));
         });
+        
+        // Paulo Nicart, added elapsed time display
+        startedAt = System.nanoTime();
+        elapsedTimer = new Timeline(new KeyFrame(Duration.millis(100), e -> updateElapsed()));
+        elapsedTimer.setCycleCount(Animation.INDEFINITE);
+        updateElapsed();
+        elapsedTimer.play();
 
         Thread worker = new Thread(task, "file-import");
         worker.setDaemon(true); // don't keep the JVM alive after the window closes
         worker.start();
     }
 
+    // Paulo Nicart, added funcionallity to stop the slapsedTimer
     private void unbind() {
         progressBar.progressProperty().unbind();
         statusLabel.textProperty().unbind();
         chooseButton.disableProperty().unbind();
         chooseButton.setDisable(false);
+        if (elapsedTimer != null) {
+            elapsedTimer.stop();
+            updateElapsed(); // freeze the final duration
+        }
+    }
+
+    // Paulo Nicart, added elapsed time display
+    private void updateElapsed() {
+    long tenths = (System.nanoTime() - startedAt) / 100_000_000L;
+    elapsedLabel.setText(String.format(Locale.ROOT, "Elapsed: %d:%02d.%d",
+            tenths / 600, (tenths / 10) % 60, tenths % 10));
     }
 
     /** Reloads the import history in the background; a request during a load runs once it finishes. */
