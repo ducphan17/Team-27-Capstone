@@ -5,7 +5,7 @@ word-pair statistics in MySQL, and generates sentences from them.
 Java 21 · JavaFX 21 (FXML) · Maven · MySQL 8 (JDBC) · JUnit 5.
 
 > All six tabs work: Import, Generate, Batch Generate, Autocomplete, Words Report,
-> and Sentence History. Batch Generate now reuses one connection and shows progress and elapsed time;
+> and Sentence History. Batch Generate now reuses one connection and shows progress and elapsed time, and the Import tab shows an elapsed-time clock;
 > app verification and tokenizer edge cases are next.
 > See [What works vs. what's left](#what-works-vs-whats-left).
 
@@ -320,8 +320,8 @@ docs/
 
 * `pom.xml`: compiles, tests, `javafx:run`.
 * `Database`: loads `db.properties`, opens connections.
-* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task, and an import history table (`FileDAO.findAll`, newest first, including `batch-generated` corpus additions) with the import count and total words; it reloads after each import and whenever the tab is opened.
-* **Word DAO:** `findByText` (also with a caller-owned connection), `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection, `update`.
+* **Import:** rejects normalized words longer than 100 characters before opening a database connection. `FileImporter` reads the file and reports progress. Shared `TextImporter` logic groups total/start/end counters in one map and snapshots them as `ImportedWordCounts` records; pair counts use a separate lookup map. Words, word pairs, and the `source_file` record save in one transaction (commit on success, rollback on failure). Repeated imports add to existing counts. Import tab: FileChooser, progress bar and status bound to the task, an elapsed-time label (`Elapsed: 0:07.3`, updated every tenth of a second, reset for each import, and kept at its final duration after success or failure), and an import history table (`FileDAO.findAll`, newest first, including `batch-generated` corpus additions) with the import count and total words; it reloads after each import and whenever the tab is opened.
+* **Word DAO:** `findByText` (also with a caller-owned connection), `findAll`, `findStartingWords`, `insertIfAbsent` (also with a caller-owned connection), `upsertCounts(List<ImportedWordCounts>)` with a caller-owned connection (resolves word IDs in chunked `IN (...)` queries through `findIdsByText`, with an individual lookup for any word the chunk query misses), `update`.
 * **Word-pair DAO:** `getFollowers` (also with a caller-owned connection), `getWord`, `upsertCounts`, `incrementUserCount` (also with a caller-owned connection).
 * **File DAO:** `insert`, `findAll` (also with a caller-owned connection).
 * **Sentence DAO:** `insert`, `findAll`, `markAddedToCorpus`.
@@ -344,16 +344,17 @@ docs/
 **Verification status**
 
 * After the batch improvements and review fixes (v2.4), `mvn -o test` passed all 115 unit tests, including regression coverage for setup errors, partial saves, close failures, and the connection-scoped DAO source. The MySQL integration suite was not rerun. On November 1, Aalvee reported a 1000-sentence batch taking 153 seconds before connection reuse and about 7 seconds afterward (approximately 22× faster in this single comparison). The after-change screenshot shows Most frequent, a full progress bar, and 1000 saved sentences. These are manual timings, not a repeated-run median; see changelog v2.4. A later screenshot confirms the elapsed counter showing `0:01.6` after a completed batch. The subsequent fix for the compressed progress bar still needs a visual check; live timer updates, reset, and failure recovery also remain to be checked in the running app.
-* Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2).
+* Importing, repeated imports, and import rollback were checked manually against MySQL (see `changelog.md`, v1.1 and v1.2). The Import tab's elapsed-time clock and the chunked word-ID lookup (v2.6) are implemented but have not been checked in the running app, and the unit and integration tests have not been rerun for them.
 * The Generate tab, Words Report (`WordDAO.findAll / update`), and Sentence History (`SentenceDAO.findAll`) were checked manually against MySQL (see `changelog.md`, v1.4 and v1.6).
 * The Autocomplete tab (suggestions while typing, sentence saving, Enter, continued sentences, retries, and the pending file across a restart) was checked manually against MySQL (see `changelog.md`, v1.9).
 * `FileDAO.findAll` is verified against MySQL in `FileImporterIT` through its caller-owned-connection overload; the zero-argument method only opens an application connection and delegates to it. The Import tab's history uses the zero-argument method and was checked read-only against MySQL (see `changelog.md`, v2.2).
 * Interface checks that need the running app are listed in [`docs/manual-ui-checks.md`](docs/manual-ui-checks.md); results go in `changelog.md`.
-* The 14 automated MySQL integration tests cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8 and v2.1.
+* The 16 automated MySQL integration tests (including a large-import check for `WordDAO.upsertCounts` that logs timings, and an opt-in time-limit benchmark that runs only with `-Dbenchmark=true`; both are rolled back so they leave no data) cover import persistence, `FileDAO.findAll(Connection)` ordering and column mapping, `WordDAO.findStartingWords`, sentence inserts, `SentenceDAO.markAddedToCorpus` through the production corpus service, and `WordDAO.insertIfAbsent` / `WordPairDAO.incrementUserCount` through the production Autocomplete service, including commit and rollback. They use the isolated test database described above. The contributor also checked batch generation and corpus additions in the running app; see `changelog.md`, v1.8 and v2.1.
 
 **Still to do**
 
 * Verify the restored progress bar, elapsed counter updates/reset/failure behavior, and Batch Generate progress with both algorithms, repeat the 1000-sentence timing comparison for median results, check partial results and control recovery when MySQL stops during generation, and recheck Add selected to corpus.
+* Verify the Import tab's elapsed clock in the running app: live updates, final value after success and failure, reset on a second import, no start when the file dialog is cancelled, and durations over one minute.
 * The open checks in [`docs/manual-ui-checks.md`](docs/manual-ui-checks.md).
 
 Next: verify the Batch Generate changes in the running app, then address tokenizer edge cases. Every tab is implemented.

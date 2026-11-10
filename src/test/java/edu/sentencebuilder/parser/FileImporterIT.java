@@ -6,6 +6,7 @@ import edu.sentencebuilder.dao.WordDAO;
 import edu.sentencebuilder.dao.WordPairDAO;
 import edu.sentencebuilder.model.SourceFile;
 import edu.sentencebuilder.model.GeneratedSentence;
+import edu.sentencebuilder.model.ImportedWordCounts;
 import edu.sentencebuilder.model.Word;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,6 +28,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Logger;
+import java.util.HashSet;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class FileImporterIT {
     private static final Properties SETTINGS = new Properties();
     private static final String CORPUS = "Zorvex miplex. Zorvex talvex.";
+    private static final Logger LOG = Logger.getLogger(FileImporterIT.class.getName());
 
     @BeforeAll
     static void initialize() throws Exception {
@@ -417,8 +422,11 @@ class FileImporterIT {
                 """);
     }
 
-    // Author: Paulo Nicart
-
+    /* 
+    * Author: Paulo Nicart
+    * Helper method to set the imported_at timestamp for a given file_id in the source_file table.
+    * This method is used in tests to control the imported_at values for testing ordering and tie-breaking.
+    */ 
     private static void setImportedAt(Connection conn, int fileId, LocalDateTime when)
             throws SQLException {
         try (var ps = conn.prepareStatement("UPDATE source_file SET imported_at = ? WHERE file_id = ?")) {
@@ -428,17 +436,25 @@ class FileImporterIT {
         }
     }
 
+    /*
+    * Author: Paulo Nicart
+    * Tests that findAll returns records newest first on the caller's connection.
+     */
     @Test
     void fileFindAllReturnsMappedRecordsNewestFirstOnCallerConnection() throws SQLException {
         FileDAO files = new FileDAO();
 
+        // An empty table gives an empty (never null) list, and the caller keeps the connection.
         try (Connection conn = open()) {
-            // An empty table gives an empty (never null) list, and the caller keeps the connection.
             assertEquals(List.of(), files.findAll(conn));
             assertFalse(conn.isClosed(), "The caller still owns the connection");
         }
 
-        // Real saves: the file importer path, then the production corpus service path.
+        /* 
+        * Real saves: the file importer path, then the production corpus service path. 
+        * Ensure the database-generated IDs are stored in the SourceFile objects, and that 
+        * the imported_at timestamps are set by the database default.
+         */ 
         importText(CORPUS, files);
         new CorpusService(FileImporterIT::open, new TextImporter(), new SentenceDAO())
                 .addToCorpus(CORPUS, saveBatchSentences());
@@ -459,7 +475,7 @@ class FileImporterIT {
             assertFalse(conn.isClosed());
         }
 
-        // Controlled timestamps: two rows share one value, so file_id DESC must break the tie.
+        // Controlled timestamps: two rows share one value, so descending file_id order must break the tie.
         try (Connection conn = open()) {
             try (var statement = conn.createStatement()) {
                 statement.executeUpdate("DELETE FROM source_file");
@@ -554,4 +570,60 @@ class FileImporterIT {
         assertEquals("Intentional autocomplete failure", error.getMessage());
         assertEquals(before, snapshot());
     }
+    
+    // Paulo Nicart, added benchmark test for large word import performance
+    /** One timed, rolled-back upsert of unique words, so tests can check results and report timing. */
+    private record UpsertTiming(int wordCount, Map<String, Integer> ids, double elapsedMs) {
+        double msPerWord() {
+            return elapsedMs / wordCount;
+        }
+    }
+
+    private UpsertTiming timeUpsert(int wordCount) throws SQLException {
+        List<ImportedWordCounts> batch = new ArrayList<>(wordCount);
+        for (int i = 0; i < wordCount; i++) {
+            batch.add(new ImportedWordCounts("perf" + wordCount + "x" + i, 1, 1, 0));
+        }
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            long start = System.nanoTime();
+            Map<String, Integer> ids = new WordDAO().upsertCounts(conn, batch);
+            double elapsedMs = (System.nanoTime() - start) / 1_000_000.0;
+            conn.rollback(); // leave no database side effects
+            return new UpsertTiming(wordCount, ids, elapsedMs);
+        }
+    }
+
+    /** Always runs: checks correctness at several sizes and logs timings, but never fails on speed. */
+    @Test
+    void largeWordImportResolvesEveryWordId() throws SQLException {
+        for (int wordCount : new int[] {5000, 10000, 20000}) {
+            UpsertTiming timing = timeUpsert(wordCount);
+
+            LOG.info(String.format("=== %d WORDS: %.2f ms total, %.4f ms per word ===",
+                    wordCount, timing.elapsedMs(), timing.msPerWord()));
+
+            assertEquals(wordCount, timing.ids().size(), "Every imported word should have an ID");
+            assertEquals(wordCount, new HashSet<>(timing.ids().values()).size(),
+                    "Word IDs should be distinct");
+        }
+    }
+
+    /**
+     * Opt-in performance check. Skipped unless run with -Dbenchmark=true, because the result
+     * depends on database latency and machine load. Override the limit with
+     * -Dbenchmark.maxMsPerWord=<value>.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "benchmark", matches = "true")
+    void largeWordImportStaysWithinTimeLimit() throws SQLException {
+        double limit = Double.parseDouble(System.getProperty("benchmark.maxMsPerWord", "0.5"));
+        for (int wordCount : new int[] {5000, 10000, 20000}) {
+            UpsertTiming timing = timeUpsert(wordCount);
+            assertTrue(timing.msPerWord() < limit,
+                    String.format("%d words took %.4f ms per word (limit %.4f)",
+                            wordCount, timing.msPerWord(), limit));
+        }
+    }
+
 }

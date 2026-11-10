@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.5**
+Current version: **2.6**
 
 ## Instructions for future updates
 
@@ -30,6 +30,26 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.6 — 2026-11-10
+
+**Author:** Johannes Paulo B. Nicart
+
+**Checkpoint:** Elapsed-time clock on the Import tab and faster word-ID lookup after import upserts.
+
+### Changes
+
+- **`ImportController.java` / `import.fxml`:** Added an `Elapsed: m:ss.t` label (for example, `Elapsed: 0:07.3`) under the import status label. A JavaFX `Timeline` updates it every 100 milliseconds on the FX thread, so the clock keeps running while the import waits on the database. Timing uses `System.nanoTime()` and starts after a file is chosen, so cancelling the file dialog does not start it. `unbind()`, which the success and failure handlers already call, stops the timer and does a final update so the label keeps the finished duration. Each new import resets it. The format matches the Batch Generate tab.
+- **`WordDAO.java`:** `upsertCounts` no longer runs one `SELECT word_id ... WHERE text = ?` per word after the upsert. A new package-private `findIdsByText(Connection, List<String>)` resolves IDs in chunks of `LOOKUP_CHUNK_SIZE` with `IN (...)` queries on the caller's connection, so a file with N distinct words needs about N / chunk-size lookups. Words the `IN` query does not return under their exact text (collation-insensitive matches) are looked up individually, so every requested word still gets an ID, and a word with no row still throws `Word missing after saving counts: ...`. An empty list now returns an empty map without preparing statements. The upsert SQL and up-front length validation are unchanged.
+- **`FileImporterIT.java`:** Added `largeWordImportResolvesEveryWordId`, which calls `upsertCounts` with 5,000, 10,000, and 20,000 unique words inside a transaction that is rolled back, logs the elapsed time and time per word for each tier, and asserts that every word gets a distinct ID. It never fails on speed. Added `largeWordImportStaysWithinTimeLimit`, an opt-in check that only runs with `-Dbenchmark=true` and asserts a per-word time limit (0.5 ms by default, changed with `-Dbenchmark.maxMsPerWord=<value>`). PR review pointed out that a timing assertion in the integration suite depends on database latency and machine load, so the threshold is no longer part of the default run.
+- **Known difference from Batch Generate:** The final time is read when the FX thread handles success or failure, not on the worker thread, because `FileImporter` was not changed. Any FX rendering delay is therefore included in the final duration (typically a few milliseconds).
+- **Documentation:** Updated the README Import and Word DAO descriptions, verification status, and to-do list, and added this entry. The unit test count is unchanged at 127; the MySQL integration test count goes from 14 to 16, of which one is the opt-in benchmark and is skipped by default.
+
+### Verification
+
+- All 127 unit tests passed on the PR commit, per the PR review. The MySQL integration suite (including the two new tests) has not been confirmed for this change, and the running JavaFX app was not rechecked. The timer is UI-only and is not covered by the automated tests.
+- Pending: run `mvn -o test` and the integration suite, confirm the existing import tests still pass with the chunked lookup, and record the benchmark times logged for each tier, and run `mvn -Pdb-tests verify -Dbenchmark=true` once to check the opt-in limit. A before/after comparison against the per-word lookup has not been measured.
+- Pending: in the running app, confirm that the counter updates during an import, freezes at the final value after success, freezes after a failed import (for example, a word over 100 characters), resets when a second file is imported, does not start when the file dialog is cancelled, and formats durations over one minute correctly. Add these checks to `docs/manual-ui-checks.md` if the team tracks them there.
 
 ## Version 2.5 — 2026-11-02
 
