@@ -37,6 +37,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class FileImporterIT {
     private static final Properties SETTINGS = new Properties();
     private static final String CORPUS = "Zorvex miplex. Zorvex talvex.";
+    private static final Logger LOG = Logger.getLogger(FileImporterIT.class.getName());
+
+    /** Generous per-word ceiling so a slow machine doesn't fail the build; the logged times are what matter. */
+    private static final double MAX_MS_PER_WORD = 0.5;
 
     @BeforeAll
     static void initialize() throws Exception {
@@ -569,40 +573,42 @@ class FileImporterIT {
         assertEquals(before, snapshot());
     }
     
+// Paulo Nicart, added benchmark test for large word import performance
 @Test
-    void benchmarkLargeWordImportPerformance() throws SQLException {
-        // Test multiple volume tiers to measure scaling behavior
-        int[] batchSizes = {5000, 10000, 20000};
+void benchmarkLargeWordImportPerformance() throws SQLException {
+    // Several volume tiers show how the lookup scales; each runs in a rolled-back transaction.
+    int[] batchSizes = {5000, 10000, 20000};
 
-        for (int targetWordCount : batchSizes) {
-            List<ImportedWordCounts> benchmarkBatch = new ArrayList<>(targetWordCount);
+    for (int targetWordCount : batchSizes) {
+        // Deterministic, unique words: no collision risk, and no clash with existing rows.
+        List<ImportedWordCounts> benchmarkBatch = new ArrayList<>(targetWordCount);
+        for (int i = 0; i < targetWordCount; i++) {
+            benchmarkBatch.add(new ImportedWordCounts("perf" + targetWordCount + "x" + i, 1, 1, 0));
+        }
 
-            for (int i = 0; i < targetWordCount; i++) {
-                String uniqueWord = "perf" + UUID.randomUUID().toString().substring(0, 8);
-                benchmarkBatch.add(new ImportedWordCounts(uniqueWord, 1, 1, 0));
-            }
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            WordDAO wordDao = new WordDAO();
 
-            try (Connection conn = open()) {
-                conn.setAutoCommit(false);
-                WordDAO wordDao = new WordDAO();
+            long startTime = System.nanoTime();
+            Map<String, Integer> ids = wordDao.upsertCounts(conn, benchmarkBatch);
+            long endTime = System.nanoTime();
+            conn.rollback(); // leave no database side effects
 
-                long startTime = System.nanoTime();
-                wordDao.upsertCounts(conn, benchmarkBatch);
-                long endTime = System.nanoTime();
-                conn.rollback(); // Rollback so benchmark leaves no database side effects
+            double elapsedMs = (endTime - startTime) / 1_000_000.0;
+            double msPerWord = elapsedMs / targetWordCount;
 
-                double elapsedMs = (endTime - startTime) / 1_000_000.0;
-                double msPerWord = elapsedMs / targetWordCount;
+            LOG.info(String.format("=== BENCHMARK TIER: %d WORDS ===", targetWordCount));
+            LOG.info(String.format("Processed in: %.2f ms", elapsedMs));
+            LOG.info(String.format("Average time per word: %.4f ms", msPerWord));
 
-                Logger logger = Logger.getLogger(FileImporterIT.class.getName());
-                logger.info(String.format("=== BENCHMARK TIER: %d WORDS ===", targetWordCount));
-                logger.info(String.format("Processed in: %.2f ms", elapsedMs));
-                logger.info(String.format("Average time per word: %.4f ms", msPerWord));
-
-                // Scale threshold check (e.g., allowance scales reasonably with size)
-                assertTrue(elapsedMs < (targetWordCount * 0.5), "Bulk import scaling performance exceeded time threshold!");
-            }
+            // Correctness first: every word must come back with an ID.
+            assertEquals(targetWordCount, ids.size(),
+                    "Every imported word should have an ID in the result");
+            assertTrue(msPerWord < MAX_MS_PER_WORD,
+                    "Bulk import exceeded " + MAX_MS_PER_WORD + " ms per word at " + targetWordCount + " words");
         }
     }
+}
 
 }
