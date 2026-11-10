@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.5**
+Current version: **2.6**
 
 ## Instructions for future updates
 
@@ -30,6 +30,23 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.6 — 2026-11-10
+
+**Author:** Johannes Paulo B. Nicart
+
+**Checkpoint:** Elapsed-time clock on the Import tab.
+
+### Changes
+
+- **`ImportController.java` / `import.fxml`:** Added an `Elapsed: m:ss.t` label (for example, `Elapsed: 0:07.3`) under the import status label. A JavaFX `Timeline` updates it every 100 milliseconds on the FX thread, so the clock keeps running while the import waits on the database. Timing uses `System.nanoTime()` and starts after a file is chosen, so cancelling the file dialog does not start it. `unbind()`, which the success and failure handlers already call, stops the timer and does a final update so the label keeps the finished duration. Each new import resets it. The format matches the Batch Generate tab.
+- **Known difference from Batch Generate:** The final time is read when the FX thread handles success or failure, not on the worker thread, because `FileImporter` was not changed. Any FX rendering delay is therefore included in the final duration (typically a few milliseconds).
+- **Documentation:** Updated the README Import description, verification status, and to-do list, and added this entry. No tests were added, so the unit test count is unchanged at 127.
+
+### Verification
+
+- Implemented but not yet verified: unit tests were not rerun and the running JavaFX app was not rechecked for this change. The timer is UI-only and is not covered by the automated tests.
+- Pending: in the running app, confirm that the counter updates during an import, freezes at the final value after success, freezes after a failed import (for example, a word over 100 characters), resets when a second file is imported, does not start when the file dialog is cancelled, and formats durations over one minute correctly. Add these checks to `docs/manual-ui-checks.md` if the team tracks them there.
 
 ## Version 2.5 — 2026-11-02
 

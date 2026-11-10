@@ -108,7 +108,7 @@ public class ImportController {
         worker.start();
     }
 
-    // Paulo Nicart, added funcionallity to stop the slapsedTimer
+    // Paulo Nicart, added funcionallity to stop the elapsedTimer
     private void unbind() {
         progressBar.progressProperty().unbind();
         statusLabel.textProperty().unbind();
