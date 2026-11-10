@@ -9,12 +9,13 @@ tick each box, and record results and the date in `changelog.md`.
 
 ## Generate
 
-- [ ] The Algorithm box lists **Weighted random** (selected) and **Most frequent**.
+- [x] The Algorithm box lists **Weighted random** (selected) and **Most frequent**. *(Passed 2026-11-10, v2.7.)*
 - [ ] Generate once with each algorithm. Sentence History shows the matching name in the Algorithm column.
 
 ## Import history
 
 - [ ] At startup the history table lists earlier imports, newest first, and the label under it shows the import count and total words.
+- [ ] Import timer (v2.6): it reads `Elapsed: 0:00.0` before any import, updates during an import, freezes at the final value after success and after a failed import (for example, a word over 100 characters), resets for the next import, does not start when the file dialog is cancelled, and shows more than a minute as `1:00.0` or higher.
 - [ ] Import a `.txt` file. A new row appears at the top as soon as the import finishes.
 - [ ] Batch Generate → Add selected, then open Import again. A `batch-generated` row appears at the top.
 - [ ] Stop MySQL, open another tab, then Import. The label shows a readable "Could not load imported files (…)" message. Start MySQL, switch tabs and back: the table loads again.
@@ -24,10 +25,11 @@ tick each box, and record results and the date in `changelog.md`.
 - [ ] The elapsed counter starts at `Elapsed: 0:00.0`, updates while generating (including database waits), and freezes when the batch finishes or fails. Generate again and confirm it resets. Check that more than a minute displays as `1:00.0` or higher.
 
 - [ ] Generate a batch with each algorithm. The progress bar updates with saved counts, reaches 100% on completion, and resets for the next batch.
+- [ ] Layout (v2.4 fix): the progress bar shows at its full height, not as a thin line, before, during, and after a batch. *(At rest it looked correct on 2026-11-10; during and after a batch not yet seen.)*
 - [ ] Time 1000-sentence batches on the version before connection reuse and on the current version, against the same corpus, algorithm, and machine. Keep corpus additions off, run three times per version, and record durations and the median in the changelog. Confirm all 1000 results were saved each time. One manual comparison was reported on 2026-11-01: 153 seconds before and about 7 seconds after; the after screenshot confirms 1000 saved sentences with Most frequent. Repeated-run medians remain pending.
 
-- [ ] Type `0`, `1001`, `abc`, and an empty value into Number of sentences, then press Generate. Each shows "Number of sentences must be a whole number from 1 to 1000." and nothing is generated.
-- [ ] Stop MySQL, press Generate. The status shows "Could not generate: …", the previous batch remains visible, and Generate, the count, and the algorithm box are usable again.
+- [x] Type `0`, `1001`, `abc`, and an empty value into Number of sentences, then press Generate. Each shows "Number of sentences must be a whole number from 1 to 1000." and nothing is generated. *(Passed 2026-11-10, v2.7.)*
+- [ ] Stop MySQL, press Generate. The status shows "Could not generate: …", the previous batch remains visible, and Generate, the count, and the algorithm box are usable again. *(2026-11-10: error message and usable controls passed; "previous batch remains visible" still to check, because no batch had been generated first.)*
 - [ ] Partial failure: generate 1000 sentences and stop MySQL after "Saved X of 1000 sentences." shows at least one saved sentence. The status reads "Saved X of 1000 sentences. …" and the list shows only the X saved rows. Sentence History has exactly those X new rows.
 - [ ] Select some results and press Add selected. They show `[Added to corpus]`. Select only those rows: Add selected stays disabled. Select a mix: only the new ones are added (the status count matches).
 
@@ -36,3 +38,4 @@ tick each box, and record results and the date in `changelog.md`.
 - [ ] Type a word longer than 100 characters followed by `.`. The status names the 100-character limit with a preview of the word, and that sentence is not saved.
 - [ ] Type `the cat sat - on the mat.` and check Words Report for a word that is just `-`. Failed on v2.0 (stored `-` with 0/0/0 counts); fixed on `main` by PR #11. To re-check, type it again, then type `sat` with a space: `on` is suggested and `-` (if listed from the old run) keeps its old typed count. An existing `-` row stays, because words are never deleted.
 - [ ] End to end (v2.0 pending item): type a sentence, pick two suggestions, end with `.`. Words Report shows any new words, and suggestions for the same words now show the higher typed count.
+- [ ] Abbreviations (v2.5): typing `Mr. Smith went home.` and `I like fruit, e.g. apples.` saves each sentence once, not early at `Mr.` or `e.g.`. Typing `So do I.` saves nothing until Enter; Enter saves it once without adding a second period, and typing ` Next one.` afterwards saves only the new sentence.

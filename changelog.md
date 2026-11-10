@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.6**
+Current version: **2.7**
 
 ## Instructions for future updates
 
@@ -30,6 +30,26 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.7 — 2026-11-10
+
+**Author:** Ben Quidlat
+
+**Checkpoint:** First interface checks completed; missing checks added to the list.
+
+### Changes
+
+- **No code changes.**
+- **`docs/manual-ui-checks.md`:** Ticked the two checks that passed and noted a partial result on a third. Added three checks that the v2.4–v2.6 changelogs asked for but the list did not yet include: the Import elapsed timer (v2.6), the Batch Generate progress-bar layout fix (v2.4), and Autocomplete abbreviation handling (v2.5: `Mr.`, `e.g.`, `So do I.` with Enter).
+
+### Verification
+
+- Ran the checks against the current `main` (`0826ed3`) by loading the real `main.fxml` and controllers in a JavaFX window and driving the controls from a test script (set text, fire buttons, read labels), with a screenshot of each screen. MySQL was not running, which is the condition the third check needs.
+- **Passed: Generate algorithm box.** It lists `Weighted random` (selected) and `Most frequent`.
+- **Passed: Batch Generate count validation.** `0`, `1001`, `abc`, and an empty value each showed "Number of sentences must be a whole number from 1 to 1000."; nothing was generated, Generate stayed enabled, and the timer stayed at `Elapsed: 0:00.0`.
+- **Partial: Batch Generate with MySQL down.** The status showed `Could not generate: Communications link failure …` with the root cause (`Connection refused: connect`), Generate, the count, and the algorithm box were usable again, and the elapsed label stayed frozen. "The previous batch remains visible" was not shown, because no batch could be generated first with MySQL off, so the box stays unticked.
+- The Batch Generate screenshot also showed the progress bar at full height at rest (not a thin line), a first look at the v2.4 layout fix; during and after a batch is still to check.
+- Still open: every other item in `docs/manual-ui-checks.md`. Most need MySQL running.
 
 ## Version 2.6 — 2026-11-10
 
