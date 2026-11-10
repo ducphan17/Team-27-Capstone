@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Logger;
+import java.util.HashSet;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,9 +39,6 @@ class FileImporterIT {
     private static final Properties SETTINGS = new Properties();
     private static final String CORPUS = "Zorvex miplex. Zorvex talvex.";
     private static final Logger LOG = Logger.getLogger(FileImporterIT.class.getName());
-
-    /** Generous per-word ceiling so a slow machine doesn't fail the build; the logged times are what matter. */
-    private static final double MAX_MS_PER_WORD = 0.5;
 
     @BeforeAll
     static void initialize() throws Exception {
@@ -572,42 +571,59 @@ class FileImporterIT {
         assertEquals(before, snapshot());
     }
     
-// Paulo Nicart, added benchmark test for large word import performance
-@Test
-void benchmarkLargeWordImportPerformance() throws SQLException {
-    // Several volume tiers show how the lookup scales; each runs in a rolled-back transaction.
-    int[] batchSizes = {5000, 10000, 20000};
-
-    for (int targetWordCount : batchSizes) {
-        // Deterministic, unique words: no collision risk, and no clash with existing rows.
-        List<ImportedWordCounts> benchmarkBatch = new ArrayList<>(targetWordCount);
-        for (int i = 0; i < targetWordCount; i++) {
-            benchmarkBatch.add(new ImportedWordCounts("perf" + targetWordCount + "x" + i, 1, 1, 0));
-        }
-
-        try (Connection conn = open()) {
-            conn.setAutoCommit(false);
-            WordDAO wordDao = new WordDAO();
-
-            long startTime = System.nanoTime();
-            Map<String, Integer> ids = wordDao.upsertCounts(conn, benchmarkBatch);
-            long endTime = System.nanoTime();
-            conn.rollback(); // leave no database side effects
-
-            double elapsedMs = (endTime - startTime) / 1_000_000.0;
-            double msPerWord = elapsedMs / targetWordCount;
-
-            LOG.info(String.format("=== BENCHMARK TIER: %d WORDS ===", targetWordCount));
-            LOG.info(String.format("Processed in: %.2f ms", elapsedMs));
-            LOG.info(String.format("Average time per word: %.4f ms", msPerWord));
-
-            // Correctness first: every word must come back with an ID.
-            assertEquals(targetWordCount, ids.size(),
-                    "Every imported word should have an ID in the result");
-            assertTrue(msPerWord < MAX_MS_PER_WORD,
-                    "Bulk import exceeded " + MAX_MS_PER_WORD + " ms per word at " + targetWordCount + " words");
+    // Paulo Nicart, added benchmark test for large word import performance
+    /** One timed, rolled-back upsert of unique words, so tests can check results and report timing. */
+    private record UpsertTiming(int wordCount, Map<String, Integer> ids, double elapsedMs) {
+        double msPerWord() {
+            return elapsedMs / wordCount;
         }
     }
-}
+
+    private UpsertTiming timeUpsert(int wordCount) throws SQLException {
+        List<ImportedWordCounts> batch = new ArrayList<>(wordCount);
+        for (int i = 0; i < wordCount; i++) {
+            batch.add(new ImportedWordCounts("perf" + wordCount + "x" + i, 1, 1, 0));
+        }
+        try (Connection conn = open()) {
+            conn.setAutoCommit(false);
+            long start = System.nanoTime();
+            Map<String, Integer> ids = new WordDAO().upsertCounts(conn, batch);
+            double elapsedMs = (System.nanoTime() - start) / 1_000_000.0;
+            conn.rollback(); // leave no database side effects
+            return new UpsertTiming(wordCount, ids, elapsedMs);
+        }
+    }
+
+    /** Always runs: checks correctness at several sizes and logs timings, but never fails on speed. */
+    @Test
+    void largeWordImportResolvesEveryWordId() throws SQLException {
+        for (int wordCount : new int[] {5000, 10000, 20000}) {
+            UpsertTiming timing = timeUpsert(wordCount);
+
+            LOG.info(String.format("=== %d WORDS: %.2f ms total, %.4f ms per word ===",
+                    wordCount, timing.elapsedMs(), timing.msPerWord()));
+
+            assertEquals(wordCount, timing.ids().size(), "Every imported word should have an ID");
+            assertEquals(wordCount, new HashSet<>(timing.ids().values()).size(),
+                    "Word IDs should be distinct");
+        }
+    }
+
+    /**
+     * Opt-in performance check. Skipped unless run with -Dbenchmark=true, because the result
+     * depends on database latency and machine load. Override the limit with
+     * -Dbenchmark.maxMsPerWord=<value>.
+     */
+    @Test
+    @EnabledIfSystemProperty(named = "benchmark", matches = "true")
+    void largeWordImportStaysWithinTimeLimit() throws SQLException {
+        double limit = Double.parseDouble(System.getProperty("benchmark.maxMsPerWord", "0.5"));
+        for (int wordCount : new int[] {5000, 10000, 20000}) {
+            UpsertTiming timing = timeUpsert(wordCount);
+            assertTrue(timing.msPerWord() < limit,
+                    String.format("%d words took %.4f ms per word (limit %.4f)",
+                            wordCount, timing.msPerWord(), limit));
+        }
+    }
 
 }
