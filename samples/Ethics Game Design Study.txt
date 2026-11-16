@@ -1,0 +1,881 @@
+Enriching Ethics Education Through Game Design: A
+Demonstration of Student Experience
+KAREN SCHRIER, Marist University, United States
+RAFAEL DA SILVA, Boise State University, United States
+This study explores the feasibility of using game design as a learning approach to allow students to creatively
+explore ethical frameworks. Sixteen participants in an undergraduate ethics course were tasked with creating
+a game using the game development tool Twine. The game was based on one of three ethical frameworks:
+Kantian, Utilitarian, or Virtue Ethics. Most participants designed games using the Utilitarian framework. Stu-
+dents’ games primarily employed story-based design techniques like including characters and dilemmas, as
+well as choices and outcomes, with all but one game incorporating consequences of players’ actions in their
+designs. An analysis of pre- and post-surveys, student game write-ups, and semi-structured interviews sug-
+gested that creating games allowed students to reflect on ethical frameworks by considering ethical decision-
+making in context and designing consequences based on players’ actions. Designing a game allowed students
+to playfully engage with ethical frameworks. We recommend that future studies examine specific processes
+in game design that can improve learning effectiveness and increase creative freedom.
+CCS Concepts: • Applied computing → Interactive learning environments; Computer games; •
+Human-centered computing → Empirical studies in HCI;
+Additional Key Words and Phrases: Learning by design, game design, ethics, ethical frameworks
+ACM Reference Format:
+Karen Schrier and Rafael da Silva. 2026. Enriching Ethics Education Through Game Design: A Demonstration
+of Student Experience. ACM Games 5, 1, Article 3 (March 2027), 17 pages. https://doi.org/10.1145/3845801
+1 Introduction
+Effective ethics education requires more than the memorization of definitions or the passive ab-
+sorption of philosophical theories. To more fully understand an ethical framework, students must
+be able to manage ambiguity and consider different perspectives, as well as to experience their ap-
+plication to real-world situations. Standard pedagogical practices, however, often struggle to bridge
+the gap between theoretical knowledge and practical application in ethics [Barak and Green 2021].
+Traditional lectures or static case studies may not fully engage students in the complexity of ethi-
+cal decision-making, potentially leading to a superficial understanding where students can define
+a framework by rote, but fail to apply it accurately in complex, dynamic scenarios. This suggests a
+need for pedagogical approaches that aid learners in actively constructing ethical understanding
+through application.
+Authors’ Contact Information: Karen Schrier, Marist University, Poughkeepsie, New York, United States; e-mail:
+Karen.Schrier@marist.edu; Rafael da Silva (corresponding author), Educational Leadership, Research, and Technology,
+Boise State University, Boise, Idaho, United States; e-mail: rafaeldasilva@boisestate.edu.
+$
+This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivs International 4.0 License.
+© 2027 Copyright held by the owner/author(s).
+ACM 2832-5516/2027/03-ART3
+https://doi.org/10.1145/3845801
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:2 K. Schrier and R. da Silva
+Game design offers one alternative to traditional methods of teaching ethics. Designing a game
+requires designers to operationalize abstract concepts into procedural systems of choices and con-
+sequences [Bogost 2008; Salen and Zimmerman 2004]. In this study, we analyze how designing
+a narrative game might allow students to contextualize and critique ethical frameworks. We uti-
+lized Twine 2.0 (hereafter known as Twine), an accessible narrative design tool, to investigate
+whether the process of game making facilitates the application of ethical principles. Specifically,
+we examine how learners translate ethical frameworks into interactive, playable, decision-making
+structures like Twine games. Previous research has suggested that bringing game design to the
+classroom is useful, for instance, for helping students to enhance identity exploration [Schrier et
+al. 2021], contextualize and practice previous learning [An 2016], and learn project management
+and problem-solving skills [Alexander and Ho 2015]. While the use of games to effectively teach
+ethics [Schrier 2019] and practice ethical decision-making skills [da Silva 2021] has been reported
+in the literature, the use of game design to learn and practice the understanding of ethical frame-
+works remains a research area yet to be explored.
+We conducted a qualitative study with 16 participants to understand how they used game design
+techniques to create a game based on one of three ethical frameworks: Kantian, Utilitarian, or
+Virtue Ethics. In this article, we first discuss the relationship between games and ethics, share
+literature on game design in instructional contexts, and present previous literature that supports
+the use of Twine in educational practices that have game creation as a learning objective. Next, we
+share our methodology, results, and analysis, and our recommendations for educators who want
+to use games and game design using Twine and other game design platforms for ethics learning
+and practice.
+2 Literature Review
+2.1 Constructionism and Game Design in Instructional Contexts
+This study is grounded in the traditions of design-based learning and constructionism, which
+suggest that learners construct knowledge most effectively when they actively create, externalize,
+and reflect on artifacts of their learning [Kafai and Burke 2015; Papert 1980]. Constructionism
+emphasizes “learning-by-making” [Papert 1980], where the act of producing an artifact, such
+as a computer program, story, or game, supports deeper understanding because learners must
+translate ideas into shareable, testable forms. Unlike constructivism, which emphasizes internal
+construction of knowledge, constructionism expands on this and also highlights the social and
+material dimensions of making, such as artifacts can be shared, critiqued, and iteratively improved
+upon [Ackermann 2001].
+Game design represents a potentially powerful constructionist practice because it requires learn-
+ers to transform abstract concepts into tangible play by designing elements like mechanics, branch-
+ing narratives, and interactive systems [Akcaoglu and Green 2019]. This aligns with Gee and Gee’s
+[2017] concept of distributed learning systems, where intelligence is not solely an internal prop-
+erty of the learner, but is stretched across the tools and environments. Through a game design
+process, learners externalize their thinking, test their assumptions, and refine their understanding
+in relation to both the artifact and its audience. For instance, game design can help learners to
+explore, through creative production, the perspectives of others’ and one’s own identities [Schrier
+2019; Thumlert et al. 2018]. Schrier [2019] studied the effectiveness of game jams for improving the
+understanding of one’s identities and the consideration of others’ perspectives. The experience of
+creating games about identity helped game jam participants in recognizing “other ways of viewing
+the world” (p. 32) and understanding the concept of identity itself. In another study, students who
+were tasked with designing games or creating content for games were able to exercise and develop
+their literacy skills, including reading, writing, and digital literacy [Owston et al. 2009].
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:3
+Particularly relevant to our study is the potential of game design in helping learners recognize
+“a metastructure in which the game mechanics, interactions, and content are to be embedded”
+[Kafai and Burke 2015, p. 321]. In a mixed-methods study, Akcaoglu and Green [2019] analyzed
+the benefits of a game design course in fostering middle-schoolers’ problem-solving and systems
+thinking. In their quantitative data, the researchers reported that students who developed games
+to improve their understanding of systems performed significantly better than those in a control
+group. In their qualitative data, Akcaoglu and Green [2019] provide examples that illustrate how
+participants negotiated their vision for games with the capabilities and their understanding of the
+development tool used in the intervention, Microsoft Kodu, thus also practicing problem-solving
+through making design decisions, such as adjusting game scope.
+In experiences focused on learning through game design, students are not passive receivers of
+information. Rather, they are required to be active throughout the learning process when they act
+as designers [Yang and Chang 2013]. For instance, to develop a design project or artifact, learners
+need to acquaint themselves with the content knowledge necessary to develop their creations
+and use that knowledge to fulfill the task. In the context of this study, understanding an ethical
+framework (e.g., utilitarianism) could be conjectured to be a crucial step prior to and during the
+students’ development of their games.
+Finally, researchers in ethics education have noted the importance of moral sensitivity and
+perspective-taking in ethics [May and Luth 2013]. People may not necessarily agree with or uphold
+other’s ethical decisions, but ethics education gives students an opportunity to play with other’s
+responses and to consider how their own actions might uphold or be different from another’s
+perspectives. Given this finding, coupled with the research on game jams, we hypothesized that
+making games about and inspired by ethical frameworks might help students comprehend others’
+ethical approaches, even if they do not themselves employ them in their own ethical practices.
+2.2 Twine 2.0 in Instruction
+Twine is a game-creation platform that allows for the creation of text-based interactive games.
+Previous studies have underscored the effectiveness of its use for game design in instructional
+contexts. Clark and Baxter [2018] report the results of a study where students developed games
+about microbiology. More than half of student participants declared that creating a game with
+Twine led to an improvement in their confidence for game creation, even without specific guidance
+and programming skills. Students’ games were found to integrate science concepts effectively and
+creatively. Clark and Baxter [2018]’s study also highlights that Twine can benefit both students
+and also instructors who do not have extensive knowledge of game creation.
+Twine was also used as a tool in Roine et al. ’s [2021] study, which investigated the use of game
+creation as an approach to assessing student learning in a Master’s level course on storytelling
+and digital media. In addition to its user-friendly nature, the researchers emphasized the ease of
+distributing Twine games within a learning management system (LMS) as these games are
+published as HTML files. In their study, games were developed in groups of four or five students
+within the context of a short game jam. Roine et al. [2021] found that the experience was effective in
+helping students bridge the gap between theory and practice. These results indicate that designing
+Twine games might be useful for students who are taking ethical theories (frameworks) and putting
+them into practice.
+Increased student engagement has also been suggested to be a benefit of using Twine in in-
+structional contexts [Thompson 2020]. Thompson’s [2020] intervention, conducted with forensic
+ecology students at a British university, adopted a group game design approach. The results of
+this study indicated an increased and more consistent impact on understanding in Twine-focused
+experiences compared to traditional content lectures.
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:4 K. Schrier and R. da Silva
+Friedhoff’s work on Twine as a platform [2013] underscores Twine’s shallow learning curve
+(especially compared to more complex and harder-to-learn game creation tools like Unity and
+Unreal Engine). Friedhoff notes that the platform’s audience of writers and students, rather than
+traditional game makers and coders, shows how it is used by those who do not necessarily have
+technical expertise. Though two of the studies discussed in this section centered on the creation
+of games in student groups, Twine’s simplicity and flexibility for text-based game design are also
+well-suited for individual game creation [Salter 2016]. Thus, we have posited here that the plat-
+form’s relative ease-of-use would make it a tool for rapidly developing short games based on ethical
+frameworks within the constraints of an undergraduate course.
+2.3 Games and Play
+Games are digital environments that often enable players to experiment with identities and skills
+within the constraints of the designed space [Bogost 2008; Salen and Zimmerman 2004]. Bogost
+[2008] argues that games are modes of expression that benefit from procedural rhetoric, “the prac-
+tice of using processes persuasively” (p. 125). According to Bogost [2008], in play, individuals ex-
+perience a sequence of “rule-based models” (p. 123) within which they can exercise different skills,
+styles of play, and identities. Game play can be understood as an exploration of and experimenta-
+tion with possibilities in an environment that is simulated and finite in nature [Gee and Gee 2017].
+Players interact with a game by performing sequences of meaningful choices [Salen and Zim-
+merman 2004]. Performance is, thus, a central component of game play [Gee and Gee 2017]. In
+performing within a game, players can make micro choices, that is, single choices made by a player
+within the designed system, or macro choices, which are overarching choices that connect and
+provide meaning to micro choices [Salen and Zimmerman 2004]. Meaningful play is, according to
+Salen and Zimmerman [2004], the result of the careful design of possible choices, which can allow
+players to experience, interpret, and reflect upon decisions made and their outcomes in the game
+space. Studies with undergraduate students [Iten et al. 2017 2018] indicates that game choices that
+include social and moral components can be particularly meaningful for players.
+In the context of ethics education, the act of designing a game requires the learner and designer
+to construct such rule-based models from scratch. To create a game that offers meaningful choices
+[Salen and Zimmerman 2004] about Utilitarian, Virtue, or Kantian Ethics, a student must act as the
+architect of the system, and determine how specific player actions (micro choices) might logically
+result in ethical consequences (macro outcomes) [Salen and Zimmerman 2004]. We leverage this
+relationship by tasking students with the creation of their own procedural rhetoric, which may
+prompt them to externalize and operationalize their understanding of such ethical frameworks.
+2.4 Games and Ethics
+Game designers can employ a variety of strategies to promote moral reflection and ethical think-
+ing. One design strategy is to provide players with agency over the game narrative, such as by
+including moral dilemmas and ethical decision-making as part of the gameplay, and adjusting
+game outcomes based on a player’s decisions [Schrier et al. 2022].
+An early notable instance of ethics and morality in a video game is I Have No Mouth and I
+Must Scream (1995 video game). In this game, your actions and responses to moral questions can
+contribute to or deter you from achieving the final goal of defeating AM, a sentient artificially-
+intelligent supercomputer who has “god-like” powers. AM has been controlling the fates of
+five surviving characters caught in a type of liminal, purgatory state [Schrier 2014]. Games like
+this, in which ethics were incorporated into the play experience, have served as inspirations for
+modern-day “ethically notable” [Zagal 2009, p. 7] games (ENGs) that meaningfully incorporate
+moral dilemmas.
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:5
+As gaming technologies have evolved, ENGs have evolved in how they incorporate ethics into
+the play experience. Schrier [2017] analyzed how players in Fable III made ethical decisions, such
+as whether to preserve a lake, build an orphanage, and in how they treat non-player characters
+(NPCs), like their mentor in the game, Walter. Her results suggested that players of games used
+a variety of ethics-related thinking skills like reflection, systems thinking, communication with
+others, identifying pros and cons, and reasoning through possibilities.
+Likewise, Staines et al. [2019] analyzed three ENGs, Firewatch, Deus Ex: Mankind Divided, and
+Darkest Dungeon, and their results suggested that games are becoming more nuanced in how they
+incorporate ethical decision-making, such as by using both larger and smaller (micro) questions,
+and by provoking more difficult conundrums and reflections on previous decisions. These games
+allow players to explore the game space, the characters, and/or the narrative by making smaller-
+scale, everyday decisions. These decisions can be presented through, for instance, “social battles,”
+as in the case of Deus Ex, or the management of the wellbeing of heroes, such as in Darkest Dungeon.
+This is similar to more recent games like Animal Crossing: New Horizons, Spiritfarer, and Stardew
+Valley, where ethical questions are subtler and involve shepherding NPCs, supporting their needs,
+and engaging in pastoral care [Glaser et al. 2024; Schrier et al. 2019].
+The process of using different strategies to incorporate ethics and morality into game design may
+also encourage players to reflect on ethical frameworks and engage in ethical decision-making.
+Schrier’s [2015] EPIC framework, which draws from previous ethics and games frameworks as
+well as ENGs, introduces several strategies that educators can use to select games and achieve ed-
+ucational goals, such as enhancing ethical awareness, reflection, and practicing ethical reasoning.
+Among the strategies identified, especially relevant for this investigation are: emotion, mood, and
+tone, role-playing; choices and consequences; application to real-world issues; and procedural ex-
+ploration and interaction. Though EPIC focuses on principles to how to use games for instruction,
+this framework illustrates how game creation also may be used to contextualize complex ethical
+decision-making. EPIC is not a central framework for our study, but it highlights important prin-
+ciples that could be used for game design such as choices and consequences, role-playing, and
+reflection, and which align with the affordances of Twine. That said, EPIC helps to illustrate why
+using games for ethics (and game design itself) might be appropriate tools for helping students to
+externalize ethical reasoning and reflection.
+3 Methodology
+For this study, we assigned a game design activity in a course on ethics, which fulfills the uni-
+versity’s ethics and justice core requirement. The course is called Ethics and Gaming, and it uses
+games, game design, and discussions around gaming to teach the basics of ethics, ethical thinking,
+and the building of ethical arguments. The course that is described in this study included only
+undergraduate students and a mix of majors, including ones in computer science, communication,
+games, marketing, and business. Most students were juniors or seniors, and none were Philosophy
+or Ethics majors. Only students who volunteered for the study were included in this study.
+The game design activity we studied involved students individually designing one short interac-
+tive game using Twine (Twine 2.0). Our primary aim in this study was to understand the potential
+of Twine as a pedagogical tool for ethics education, by investigating how students used it in an
+ethics education context. Specifically, we examined how students used Twine’s capabilities, such
+as its enabling of the development of branching narrative games, and how this might support their
+understanding of ethical frameworks. Our central aim is to highlight Twine’s value for instructors
+seeking accessible ways to integrate design-based learning into ethics curricula. To capture stu-
+dents’ experiences in designing games for ethics and assess the efficacy of game design to foster
+understanding of three ethical frameworks, we addressed the following questions in this study:
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:6 K. Schrier and R. da Silva
+(1) Which ethical framework(s) did the students use?
+(2) What were the genre(s) of game/story used?
+(3) What were some of the major themes and elements used in the game?
+(4) How did the students characterize their experience with Twine?
+3.1 Assignment Overview and Procedures
+The first author served as the instructor for the course. Students were first provided instruction
+on three frameworks (Utilitarianism, Virtue Ethics, Kantian Ethics) in three successive weeks of
+the course. Prior to these weeks of instruction, they also learned Hedonism, but this was not used
+as part of this particular game assignment. The pedagogical instruction that was provided prior
+to the Twine game assignment included overviews of each framework (e.g., major tenets, related
+philosophers) and class discussions on the strengths and drawbacks of each framework. Students
+were assigned relevant chapters in The Fundamentals of Ethics textbook [Schafer-Landau, 2021] to
+read prior to each week’s discussions. Students were also taught how to specifically apply these
+frameworks to gaming through discussions about games and through a series of short, collabo-
+rative hands-on exercises done in pairs in class. For example, students played ethically notable
+[Zagal 2009] games such Papers, Please [Pope 2013] and discussed how we might apply utilitarian
+frameworks to them, and what types of design techniques in the games might or might not align
+with utilitarianism.
+After the weekly lessons that were focused on the three ethical frameworks, students were then
+coached on how to use the narrative game creation tool Twine. This step involved direct instruc-
+tion as well as a guided full-class design effort in which the instructor collaboratively designed
+a short game in Twine with the students. Next, students were given an assignment sheet for a
+graded project where they needed to individually design a game that reflects one of three ethical
+frameworks (Kantian, Utilitarian, Virtue Ethics). Students developed part of the first draft of their
+game during class and then finished the first draft out-of-class over a week-long period. They also
+had another in-class period to continue to work on the final draft of the game, and another week
+to further develop it out-of-class. All students in the class also needed to write a reflection essay
+as part of the assignment, which described how the game applied their chosen ethical framework,
+and their design approaches and techniques. Thus, this reflection paper externalized their thought
+processes on how they designed the game.
+In class, after their first game draft was complete, students “playtested” their creations by ob-
+serving other classmates playing their game. Students who playtested gave critical feedback on
+strengths (what worked) and weaknesses (what did not work) in the game, its story, and any other
+components. Critiques could be thematic (e.g., the ending, story structure) or functional (e.g., un-
+intentional dead ends, bugs). They also needed to comment on how well the ethical framework
+was operationalized within the game’s design.
+3.2 Data Collection Instruments and Procedures
+This study was first approved by the lead author’s institution’s IRB (#S22-025). All students in
+the course completed the graded assignment in which data was collected, but only 16 of the 25
+enrolled students volunteered to participate in this optional study. In our sample of 16 students, 13
+identified as male, three identified as female, and one did not specify gender identity information.
+Participants’ ages ranged from 18 to 24 and they were primarily identified as White (n=11). The
+other five participants identified as follows: Hispanic; Black; Asian; and biracial. One participant
+did not specify their racial background.
+Before the data was collected, the research procedures were thoroughly explained to potential
+research participants. Students who volunteered to participate in the study signed a consent form
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:7
+that described the potential risks of the study as well as their rights throughout the research
+process. Consenting students completed a pre-activity survey, a post-activity survey, and a short
+semi-structured interview after the game was submitted; reflection essays, submitted as part of
+the graded assignment, were also collected with consent. All data was anonymized to maintain
+confidentiality, and any potentially identifying information has been deleted from the dataset.
+Participants are identified in this article by numbers instead of pseudonyms or names in the
+Results section.
+The pre- and post-intervention surveys, administered via Google Forms, included questions re-
+lated to their attitudes toward learning about ethics and games; their confidence in learning ethics
+and engaging in game design; their definitions of ethics and the three ethical frameworks (e.g., util-
+itarianism); their previous familiarity with Twine; and their demographic information. In the pre-
+and post-intervention survey, we also asked them questions related to a brief ethics scenario, such
+as what they would do. In the post-intervention survey, they were also asked questions about the
+game they created, which ethical framework they used, how their game reflects the ethical frame-
+work, and what they might change about the assignment to help them better learn about ethics in
+the future. To conduct our analyses, separate spreadsheets with pre- and post- results were created.
+A short, 5–10 minute semi-structured interview was conducted by the researchers after the post-
+intervention survey was completed. These interviews were conducted with the 16 participants
+via a video conferencing tool. The interview repeated some questions from the survey and asked
+follow-up questions, such as about the game that they created, how they came up with the con-
+cept, how it related to the chosen ethical framework, why they chose that framework, and what
+they would change about the assignment. For this article specifically, we focused on participants’
+responses to questions that pertained to their creative and game design processes and the mani-
+festations of ethical frameworks within their game artifact. A master Google Docs document was
+created with all the interviews to facilitate the coding process.
+Collected data also included students’ reflection essays, in which they summarize their games’
+story and mechanics, describe their purpose and intended alignment with one of the ethical frame-
+works addressed in the assignment, and share results of playtesting sessions. Some participants
+also described changes made to their games after receiving feedback from peers. These essays were
+also organized in a single document for analysis by the researchers.
+Finally, the Twine games themselves were not coded as artifacts for this study. The findings
+reported in this article relate to game content, structure, and design features as derived from par-
+ticipants’ own accounts of their games in the other aforementioned instruments (interview, re-
+flection paper, surveys). We report what students explained that they designed and why instead
+of a structural analysis of the games they produced. This investigation adds to previous findings
+on students’ confidence on ethics knowledge and ethical decision-making in this intervention [da
+Silva and Schrier 2026].
+3.3 Coding Approach
+We coded all the data described above using a general inductive approach [Thomas 2006] and
+analyzed it using shared spreadsheets (Google Sheets). The unit of analysis was the coded segment,
+defined as a passage of one or more sentences expressing a single idea about the participant’s game,
+their design decisions, or their experience of the assignment. Segments could receive more than
+one code. We applied codes wherever relevant content appeared, across all instruments in the
+corpus, which allowed us to observe whether a participant’s account of their game held across
+different instruments. Convergence across these collected data gave us greater confidence that a
+coded feature reflected a participant’s design reasoning.
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:8 K. Schrier and R. da Silva
+Both authors first conducted independent coding in parallel, separately looking for themes in
+data associated with three randomly selected participants and, from there, created an initial set
+of codes (code book). These spreadsheets contained columns for: participant numbers; excerpts of
+their reflections, survey, or interview; the data source; and codes attributed to particular segments.
+We then compared the codes we created in our initial separate spreadsheets and continued to revise
+the code book, removing all overlaps and improving clarity and consistency, until a second and
+more refined set of codes emerged, to create an updated code book. Next, we individually coded
+the data for all of the participants again. Afterward, we compared our coded data with each other
+and deliberated on the codes until we reached 100% agreement for the code assignments for every
+excerpt. Final coded segments were then organized into a single spreadsheet. The coding process
+produced 507 coded segments in total, with 96 segments coded in the pre-test, 169 in the post-
+test, 105 in semi-structured interviews, and 137 in reflection essays. It is important to note that all
+segments were analyzed in the same spreadsheet rather than divided by data source, though data
+sources were specified in the analysis sheets.
+After the list of codes was finalized, we determined the relative salience of each code by calculat-
+ing the frequency of its occurrence across participants. For example, the code “game-consequence”
+appeared across 15 participants, while “long-term consequences” appeared across five participants.
+Finally, we grouped codes into different themes that emerged from the data analyzed. The resulting
+themes are listed in Table 1.
+The themes that related to the game elements and design processes were later wrapped up into
+overarching categories. For instance, “choices and consequences” and “branching” were wrapped
+up into an overarching category, Decision-Making Considerations. We will further discuss the over-
+arching categories later in the paper.
+4 Results
+We found the following results to our research questions.
+RQ #1: Which ethical framework(s) did the students use?
+The frequencies for all of the codes are in Table 2. Almost all (n = 11) of the 16 students chose to
+represent the Utilitarian framework through their game designs. To use the Utilitarian approach,
+students had to think about how to create a game where a player needs to consider the conse-
+quences of an action or decision, and choose the most optimific action to enhance well-being (the
+greatest good for the greatest number”). One student (155) contextualized utilitarianism in their
+game by using a moral dilemma: “It’s like, which person can you save who can help better the
+village? Because they are in a war right now.” Another student designed their game such that you
+can have a “good” ending only if you apply the utilitarian approach to the choices you make in
+the game. 569 explained the concept of their game as follows: “you’re a traveler going to a planet,
+but. . . they’re strictly utilitarian. So before you can get through customs, you’re put through... a
+rigorous test, which will determine your eligibility to enter the planet.”
+Two of the 16 total students chose to apply the Virtue Ethics approach. For example, students
+needed to apply some aspect of virtue ethics, like enhancing or activating their players’ moral
+wisdom, the ability to address moral complexity, or their facility with acting as virtuous role mod-
+els. Or, students could think about the virtues themselves (e.g., generosity, kindness, patience), or
+they could consider through the game what a virtuous person would do in a given scenario. One
+student (419) approached this by explaining that in their game, “[y]our goal is to choose the most
+virtuous person in regards to the context of the problem to model your own actions after.”
+Two of the students chose the Kantian approach. For the Kantian approach, students needed
+to apply some part of the approach, like having the player uphold the categorical imperative and
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:9
+Table 1. List of Themes as well as Its Description and Associated Codes
+THEMES THEME DESCRIPTION CODES
+Choices and
+consequences
+Most designed games included cause and effect, including
+longer-term consequences
+Game-choices
+Game-consequence
+Game-consequences-longerterm
+Branching Most participants added weight to players’ decisions
+throughout the game by including branching options that
+would lead to different endings
+Multiple-endings
+Branching
+Utilitarianism Most students chose to represent utilitarianism through
+their game
+Game-util
+Intentionality Most participants’ games were intentionally designed to
+convey a message
+Game-intent
+Narrative Half of participants reported including overarching
+narratives within which ethical decisions based on their
+chosen framework were contextualized
+Narrative
+Realistic settings Some participants designed narratives that were
+contextualized with realistic settings such as professional
+workplaces, health settings, and schools.
+Narrative-professional
+Narrative-health-setting
+Narrative-school-setting
+Fantasy settings Some participants designed narratives that were
+contextualized with fictional settings inspired by genres
+such as fantasy, sci-fi, and horror.
+Game-sciencefiction
+Narrative-fantasy
+Moral Dilemmas Some participants incorporated moral dilemmas in their
+narratives.
+Narrative-dilemma
+Trolley-problem
+Limited experience Limited experience with Twine, as well as the tool’s
+limited functionality for game development, were
+identified as an obstacle that prevented some students
+from designing more complex games
+Twine-constraints-personalskill
+Twine-constraints
+Critical game design A small number of student games included critical
+reflection of ethical frameworks
+Disrupt-expectations
+Utilitarianism-critical
+Virtue-critical
+Perspective-taking Three students’ games intentionally incorporated
+perspective-taking and empathy in their designs.
+Perspective-taking
+Empathy
+Instructional scaffolding Two participants included instructional scaffolding in their
+games
+Game-scaffolding
+reinforce the need for justice, fairness, and equity in making decisions. One student (571) explained
+that, “This game connects to Kantian ethics because it has the player consider a few decisions and
+then has the decisions they make affect the player.” Finally, one student (199) included elements
+of all three frameworks in their design: “For my Twine game, I decided to base it primarily on
+utilitarian beliefs but still included some Kantian and virtue ethical decisions to help decide the
+player’s end.”
+RQ #2: What were the genres of game story used?
+Half (n=8) of the 16 total participants used a story-based or narrative approach when designing
+their games. Their approach was to use a fictional story with characters, conflict, and a plot (be-
+ginning, middle, and end). The type of story that was developed differed from student to student.
+For instance, one participant (24) described their story as “The player is trapped in a strange and
+unknown place. They may travel alone or with a young and mysterious girl to escape the place
+they’ve found themself(ves) in.” Another student (205) explained that, in their game, “the over-
+all story has the player explore being an apprentice, and whether or not an invention should be
+released as soon as possible.” It’s not surprising that many students created story-based games,
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:10 K. Schrier and R. da Silva
+Table 2. List of Codes and Associated Participants That Were Coded with Each One
+THEMES CODES PARTICIPANTS (n = 16) FREQUENCY
+Choices and
+consequences
+Game-choices
+Game-consequence
+Game-consequences-longerterm
+16
+15
+5
+100%
+94%
+31%
+Branching Multiple-endings
+Branching
+13
+11
+81%
+69%
+Utilitarianism Game-util 12 75%
+Intentionality Game-intent 11 69%
+Narrative Narrative 8 50%
+Realistic settings Narrative-professional
+Narrative-health-setting
+Narrative-school-setting
+4
+3
+3
+25%
+19%
+19%
+Fantasy settings Game-sciencefiction
+Narrative-fantasy
+2
+1
+13%
+6%
+Moral Dilemmas Narrative-dilemma
+Trolley-problem
+5
+2
+31%
+13%
+Limited experience Twine-constraints-personalskill
+Twine-constraints
+6
+1
+38%
+6%
+Critical game design Disrupt-expectations
+Utilitarianism-critical
+Virtue-critical
+3
+1
+1
+19%
+6%
+6%
+Perspective-taking Perspective-taking
+Empathy
+3
+1
+19%
+6%
+Instructional
+scaffolding
+Game-scaffolding 2 13%
+especially given the affordances of Twine and its primary use as a tool to create branching narra-
+tives and text-based games [Roine et al. 2021].
+Five students mentioned a creative inspiration for their game, without being explicitly asked.
+The inspirations varied from books they have read to personal situations they have experienced.
+One student (205) who mentioned Choose Your Own Adventure books shared that “I remember
+reading when I was like, younger. . . I kinda like that approach, that style. [My game is] about a
+person like at [a college] becoming an apprentice to an inventor. . . . The main ending is . . . asking
+the player if it is morally right to [share it with the world].” Another student (71) shared that they
+based their game narrative on “a real life situation. . . my friend had these problems.”
+The eight students who designed their games around fictional narratives adopted a variety of
+genres and settings. Some of the stories were coded as being associated with more than one genre
+or setting. Two students used a science fiction-style game. One student (419) explained that, “The
+story is that you were just elected to be president of the united planet of Earth and you are looking
+into possible solutions to help stop a drought in Africa.” Another student (569) shared that,
+My narrative takes place shortly after arriving on a vacation planet through the UPTA (Utilitar-
+ian Planet Travel Agency). Since it is a very strictly utilitarian planet, newcomers are put through
+a series of tests to determine eligibility. No virtue or Kantian ethical framework-followers allowed!
+Another student used a mystery or fantasy genre. They (24) explained that a mysterious char-
+acter. . . has been trapped in a strange place and must find their way out, alone or with the help of
+a young girl named Anita. The goal of the game is to escape the mysterious place you have been
+trapped in, and you work your way to that goal by making various in-game choices (notably at
+the very beginning of the game).
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:11
+Table 3. Overarching Categories and Their Associated Themes
+Overarching Category Themes
+Decision-Making Considerations Choices and consequences
+Branching
+Interpersonal Dimensions Moral Dilemmas
+Perspective-taking
+Instructional Scaffolds Instructional Scaffolding
+Other students based their stories in realistic contexts. Four students used a workplace or pro-
+fessional setting for their story. For instance, one student (414) reported that, “In my game, the
+player acts as a CEO of a large corporation.” Three students used a health setting for their narra-
+tive. For instance, one student (674) explained that their game took place at “Sunshine Hospital,
+and you are the new head doctor. As the head doctor, you have to make ethical decisions that
+affect “the greatest amount of good for the greatest number of people.” Three other students used
+a school setting as the basis for their game’s story. One of these participants (932) explained that,
+in their game, players make “choices that either get them closer or further away from being the
+valedictorian [of a school]”.
+RQ #3: What were some of the major themes and elements used in the game?
+Students’ games incorporated a range of recurring design techniques, features, and practices that
+can be organized into three overarching categories: decision-making structures, interpersonal di-
+mensions, and instructional scaffolds. For instance, two of the themes, “choices and consequences”
+and “branching” were wrapped up together into the category Decision-Making Considerations.
+“Perspective-taking” and “Moral Dilemmas” were wrapped up together to create the overarching
+category, Interpersonal Dimensions. The themes and overarching categories can be found in Table 3.
+Decision-making Considerations All participants (n = 16) designed games around explicit choices
+for players, which reflects Twine’s affordances for choice-based games and branching narratives.
+These were often structured decision points that meaningfully shaped the story, determined out-
+comes, or linked to ethical dilemmas; they were not just simple routine in-game actions, such as
+picking up an object. For instance, one participant (898) said, “So like it gives you. . . you’re given
+options. And then within those options, it’s obviously the right thing to do and the wrong thing
+to do.” Another student (932) explained that, in their game, “[t]he player basically got to choose
+what would make them happy in each situation. Each person has different values, which is why
+there are so many different outcomes of the game.”
+Almost all students (n = 15) also incorporated consequences that followed from those choices.
+The game player would not just make a choice, but they were shown the consequence of that
+choice, either in the short or longer-term. For instance, one student (49) explains that, in their
+game, “your goal. . . is to make the correct decisions and rob the warehouse unharmed. Their [sic]
+are multiple ways the player can win the game but their [sic] are also a lot of ways the player can
+fail and he would have to restart.”
+Within this category, a subset of five students extended their designs to also include long-term
+consequences, where player actions produced ripple effects beyond immediate outcomes. One stu-
+dent (205), who applied the utilitarian approach, explained that, in their design,
+The main ‘conflict’ is that Thomas has an invention that can greatly improve the world right
+now, but he wants to be compensated for his work, delaying the invention’s release. Thomas would
+still benefit if it were released right now, but he does not want to release it yet. The main character
+has a choice of whether to release the invention now or let Thomas decide its fate, and the ending
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:12 K. Schrier and R. da Silva
+asks the player whether or not it was fine to release a world-changing invention now or later if it
+still benefits a great amount of people. The player has to decide in the game what would produce
+the most long-term happiness for the world.
+This type of approach to considering consequences in the short and longer-term ties in well
+with the instruction that the students received about Utilitarianism, for instance. Often, class dis-
+cussions in the context our study was carried out include a reflection on how we might accurately
+predict expected consequences. Students will bring up the point that we might think about ini-
+tial consequences, but later down in the future, other types of consequences might appear, which
+affect how we might perceive the ethics of a decision from a utilitarian perspective.
+Thirteen students designed multiple possible outcomes, and created different endings or branch-
+ing paths depending on decisions made. Long-term consequences frequently co-occurred with
+multiple possible outcomes, and both extended the basic structure of choices and consequences.
+One student (987) shared that they designed their game so it, “made the best results happen by
+you. . . sticking to who you are as yourself and being kind to others. And then as soon as you kind
+of stray from those virtues you get like a lot of bad endings.” Likewise, another student (49) shared
+that, “Your goal of the game is to make the correct decisions and rob the warehouse unharmed.
+Their [sic] are multiple ways the player can win the game but their [sic] are also a lot of ways the
+player can fail and he would have to restart.”
+Interpersonal Dimensions Not surprisingly, given the “interpersonal” and “societal” aspects of
+the frameworks that were shared, students incorporated some elements that related to taking on
+others’ perspectives, such as by using scenarios or moral dilemmas to help illustrate others’ stories
+and viewpoints. Three students designed for perspective-taking, positioning the player as a pres-
+ident, CEO, or doctor whose role required making ethically charged decisions. For instance, one
+student (898) said that “I just thought that, like, that’d be a fun game to play if you were in the shoes
+of a president because I’m sure many people want to know how [sic] it’s like being a president.”
+We use scenarios, role plays, and stories in class to learn about these three ethical frameworks,
+and five students explicitly incorporated moral dilemmas that pertain to people into their games.
+One student explained that, in their game, “...there’s no possible scenario where you can save
+yourself and the greatest amount [sic] of people. It’s either you have to sacrifice yourself and
+everybody gets to live, or everybody will die. Except for you” (199). Two students incorporated
+a “Trolley Problem” into their game, though the class had not reviewed that by the point when
+the game was being created. One student (24) explained, “I based [my game] on the train problem
+- where you divert the train and spare a number of people and save lives but you hurt someone
+else. You have more people that you spare, that gave me. . . motivation for the ending.” One student
+integrated compassion and care for others explicitly as guiding design principles. The student (419)
+said that, “I .. made it so that the player has to use their emotions to. . . see like what they think is
+like a conflicting advice to the virtue. . . .You decided to create a research team to look into possible
+solutions to the drought in Africa and the problems coming from it. This was done for the sole
+reason of caring for others.” This aligns well with the virtue ethics approach, which they used.
+Virtue ethics focuses in part on the use of emotions and care to make decisions, so it was useful
+to see this also illustrated in the game that they developed.
+Instructional Scaffolds Finally, two students integrated scaffolding mechanisms into their de-
+signs. This means that they were not just trying to learn the frameworks themselves and apply
+them through the game. Rather, they also wanted to teach others these frameworks through their
+game designs. Their techniques for doing this included reminders, nudges, and the ability to re-
+visit previous choices (reflection). Unlike the decision-making and ethical dimensions, scaffolding
+served as a complementary layer, reinforcing or clarifying the ethical reasoning embedded in other
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:13
+elements rather than functioning as a standalone feature. One student (898) said that, “if you make
+[sic] the wrong thing, if you choose the wrong option, then you’re reminded. You’re reminded if
+you should take that step or not.” Another student (532), who allowed players to revisit and re-
+vise decisions in their game, explains that, “Some of the answers continue the players along the
+journey of Utilitarianism, while other answers disqualify them as a Utilitarian, but allow them to
+jump back into the game.”
+RQ #4: How did the students characterize their experience with Twine?
+All the students in the study were able to complete the assignment and use Twine to design their
+games. Six of the 16 participants, however, mentioned that they did not feel confident with the
+Twine tool even after using it for the game assignment. For the six that mentioned this, it was due
+to them wanting to perform more advanced design tasks with Twine, such as adding images or
+sounds, but not knowing how to do it. When asked an open-ended question about using Twine,
+a student (199) explained that, “one thing that I had a difficulty with was adding pictures. . . .And I
+tried to figure out how to do that and had complications there as well, because I wanted to have
+like a spooky sound the whole time in the background.” While another student (659) echoed this
+by saying: “I would have liked to be able to get some images in there. But I couldn’t figure that out
+with Twine. I’m not particularly adept at Twine.” Students were not required or even encouraged
+to include images or sounds, but they wanted to go beyond the requirements of the assignment to
+create their games.
+One student also mentioned that they felt constrained by the functionalities afforded by Twine.
+They (569) said, “through Twine where, you know, you’re pretty limited in what you can do.” On
+the other hand, the same student said there were a lot of possibilities for designing with Twine.
+They explained that, “I also thought it was good, because . . . you can also add on as much as you
+want to it.”
+5 Discussion
+Our results suggested that students created a variety of Twine games that allowed them to exter-
+nalize and apply their understanding of the three ethical frameworks in ways that align closely
+with constructionist principles. Constructionism emphasizes learning-by-making [Papert 1980],
+and in this case, the artifact of a Twine game became a vehicle through which students trans-
+lated abstract ethical concepts into concrete, shareable systems of choices and consequences. By
+creating games that could be played, tested, and critiqued, students not only demonstrated com-
+prehension, but also engaged in the iterative refinement of their understanding through artifact
+design and peer feedback [Kafai and Burke 2015].
+These findings also resonate with theories of game-based learning, particularly the emphasis
+on decision-making, branching consequences, and perspective-taking as drivers of reflection and
+engagement [Schrier 2015; Nadolny et al. 2020]. Twine’s affordances encouraged students to de-
+sign games that included choice, consequences, and multiple outcomes, as well as dilemmas that
+encouraged perspective-taking and consideration of other people’s needs. The sub-sections below
+summarize key takeaways from our results.
+5.1 The Assignment Was Completed within Given Constraints
+All students in the study were able to complete the assignment and develop a Twine game that met
+the constraints of the assignment (such as the timeframe of the assignment and the limitations of
+the tool). This is despite six of the students remarking (unprompted) that they felt that their skills
+with Twine were not as advanced as they hoped. These students felt that there was more that they
+wanted to do with their game, even beyond what the assignment required, which also suggests that
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:14 K. Schrier and R. da Silva
+they were meaningfully engaged in the game-making process, even if they were unable to fully
+realize their vision. These findings align with Thompson [2020] report of increased engagement
+as a result of using Twine for game development in an instructional setting.
+Twine was also relatively quick for the students to get started with, as they were able to begin
+crafting their games with only 15–20 minutes of instruction on how to use the basic elements
+of the platform. Such findings indicate that the user-friendliness and simple interface of the tool,
+previously identified by Friedhoff [2013], eliminated barriers that allowed students to quickly im-
+plement their ideas and realize their vision for their games in an effective manner.
+5.2 Choices and Consequences Mattered in the Design
+All the participants in the study included choices in their game’s design, and most included out-
+comes or consequences based on the choices that players made. The use of choices may be in part
+due to the affordances of Twine, which encourages designers to make a branching choice-based
+game where players can choose one path or another [Friedhoff 2013]. Thus, the use of conse-
+quences may also have been due to how Twine is designed, and what is supported by the platform.
+However, the use of choices and consequences in the game was also likely due to many of the stu-
+dents designing their games around the Utilitarian framework, which relates more explicitly to the
+consideration of expected outcomes from possible ethical choice paths to help figure out the most
+optimific choice by calculating the greatest good that can be attained by the greatest number.
+Moreover, the game activity helped students to design scenarios that involved not just cause
+and effect, but ones that grappled with longer-term consequences. For instance, drawing upon
+the Utilitarian framework, one student’s (24) fantasy-genre game puts the player in the shoes
+of a character who needs to make choices to escape a monster in a mysterious setting with the
+help of a young girl whose soul, the player finds at the end of the game, is connected to the
+monster. The player eventually sees how the way they treated the monster affects not just the
+near-term outcomes but the longer-term impact on a village. This relates, for instance, to work
+done by Schrier [2017], where the researcher finds that playing a game, Fable III, helped players to
+grapple not only with the outcomes of their possible choices, but a dynamic web of interlocking
+factors, such as ones related to empathy, information, reasoning, and reflection. It also relates,
+like previously shared, to the types of discussions the class had about Utilitarian approaches and
+expected short- and longer-term outcomes.
+Designing a system and a story world may have helped the students imagine and construct eth-
+ical choices and possible outcomes. They used multiple endings and different pathways, perhaps
+to help emphasize to the player that their actions and consequences have impact and weight. In
+that regard, the experience allowed students to consider how important the player’s experience is
+to the design process [An 2016]. For instance, one student required players to answer questions
+using a Utilitarian approach to be able to get the “most optimal” ending. Thus, students used the
+strengths of Twine to create a branching story or problem, where one’s decisions mattered and
+different pathways were possible. These findings highlight students’ efforts in designing meaning-
+ful choices to engage their players [Nadolny et al. 2020; Schrier 2021] and promote empathy and
+reflection for their players [Schrier 2017]. It shows that the students were going beyond what they
+needed to understand about the frameworks and started to consider what their players might need
+to be able to understand the frameworks.
+5.3 The Design Externalized Their Thinking
+Students also used their game designs as a way to talk about and reflect on the ethical frame-
+works themselves. The didactic and discussion-based instruction prior to the game’s design as-
+signment included an evaluation of the three frameworks, such as their perceived strengths and
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:15
+weaknesses. However, being able to visualize and experience these strengths and weaknesses first-
+hand throughout the design process seemed to be particularly beneficial for students, and seemed
+to help them bridge the gap between theory and practice through game design [Frydenberg 2015;
+Roine et al. 2021].
+In their interviews about their design work, three student participants commented on their own
+critiques of the ethical frameworks they chose to use in their game’s designs, and the problems
+that may arise from heeding too closely to those frameworks. They acknowledged that the design
+process helped them to see these problems, and also to highlight them for their players. For in-
+stance, one student’s (674) game “encompassed the ethical framework of utilitarianism and shows
+the flaws within the way of thinking.” This example illustrates that the game design experience
+helped students creatively develop and express a critical lens, which aligns with previous findings
+related to the critical thinking benefits of design-based learning [Weng et al. 2023]. Participants
+also invited their imagined audience to share in this critique, potentially fostering interpersonal
+connections [Kafai and Burke 2015].
+Being able to design a game that applies an ethical framework seemed to also help the students
+to have creative control over it, and more readily construct with it, rather than be intimidated by it.
+Participants’ familiarity with or interest in games and game design helped to ease them into new
+concepts. Beyond just participating in the formal class discussions and readings, the game activity
+helped to extend their thinking and continue their practice in understanding and grappling with
+these ethical frameworks.
+6 Final Considerations
+This study investigated the potential of Twine as a pedagogical tool for ethics education. Specif-
+ically, we examined how students used Twine to design games that applied ethical frameworks
+and what this process revealed about their reasoning. Our results indicate that the chosen devel-
+opment platform, Twine, facilitated participants’ realization of their designs due to its simplicity
+and user-friendliness [Friedhoff 2013]. The shallow learning curve allowed students to focus on
+contextualizing their chosen ethical framework in a designed game that often included choices,
+branching options, and consequences to players’ actions, which effectively communicated their
+understanding in a designed, playable system (rather than what is typically used for assessment,
+like a paper or oral exam). For most participants, the Utilitarian framework was chosen as the inspi-
+ration for their games, possibly due to its alignment with branching narratives or moral dilemmas
+that students could easily apply to their Twine game design, such as the trolley problem.
+There are several limitations of the study. First, our sample size was limited to 16 participants,
+so this exploratory design intentionally privileged depth over breadth. The qualitative richness of
+student reflections and game artifacts provided insight into how Twine supported the contextual-
+ization and application of ethical frameworks, even if generalizability is not claimed. The sample
+is also limited by the use of a specific class at a private regional university in the United States
+for students who are not majoring in Philosophy or Ethics. Furthermore, we could not control for
+similarities or differences across students’ understandings of the frameworks, and whether they
+had or had not previously taken other ethics courses. Likewise, we could not control for the level
+of expertise with Twine and previous knowledge of game design. Finally, since this study adopted
+a qualitative approach, it is likely that researchers’ subjectivities could have influenced the codes
+and themes that were extracted from the data provided.
+This study provides initial evidence that game design with Twine can help students external-
+ize, apply, and critique ethical frameworks. Ethics is a particularly complex construct because it
+requires learners to grapple with ambiguity, weigh multiple perspectives, and consider the conse-
+quences of actions. However, these are types of processes that game development platforms, and
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+3:16 K. Schrier and R. da Silva
+particularly, Twine’s branching structure, may help to facilitate. Unlike other domains where an-
+swers may be more straightforward, ethics education can benefit from a design-based approach
+that makes dilemmas and their nuances visible. Future research should extend this work by com-
+paring outcomes across different ethical frameworks, and by conducting similar research with a
+larger, controlled sample size. We also encourage researchers to investigate how specific aspects
+of the game design process, such as brainstorming and ideation, playtesting, writing choices, and
+imagining and describing systems, might more specifically relate to enhancing understanding of
+ethics and ethical thinking.
+Declaration of Interest Statement
+The authors declare that no funds, grants, or other support were received during the preparation
+of this manuscript, nor are there any relevant financial or non-financial interests to disclose.
+References
+E. Ackermann. 2001. Piaget’s constructivism, Papert’s constructionism: What’s the difference? Future of Learning Group
+Publication 5, 3 (2001), 1–11.
+M. Akcaoglu and L. S. Green. 2019. Teaching systems thinking through game design. Educational Technology Research and
+Development 67 (2019), 1–19. DOI:https://doi.org/10.1007/s11423- 018- 9596- 8
+A. Alexander and T. Ho. 2015. Gaming worlds: Secondary students creating an interactive video game. Art Education 68, 1
+(2015), 28–36. DOI:https://doi.org/10.1080/00043125.2015.11519303
+Y. J. An. 2016. A case study of educational computer game design by middle school students. Educational Technology Re-
+search and Development 64 (2016), 555–571. DOI:https://doi.org/10.1007/s11423- 016- 9428- 7
+M. Barak and G. Green. 2021. Applying a social constructivist approach to an online course on ethics of research. Science
+and Engineering Ethics 27, 1 (2021), 1–24. DOI:https://doi.org/10.1007/s11948- 021- 00280- 2
+I. Bogost. 2008. The rhetoric of video games. In The Ecology of Games: Connecting Youth, Games, and Learning. K. Salen
+(Ed.), MIT Press, 117–140). DOI:https://doi.org/10.1162/dmal.9780262693646.117
+J. Clark and R. Baxter. 2018. From passive players to active developers: Undergraduate biology students developing their
+own digital learning game with Twine. Journal of Applied Instructional Design 7, 1 (2018), 7–16.
+R.L. da Silva. 2021. The process of moral decision-making in a game-based narrative scenario through the experience of
+future government workers. TechTrends 65, 4 (2021), 511–523. DOI:https://doi.org/10.1007/s11528- 021- 00591- y
+R. L. da Silva and K. Schrier. 2026. Learning and reflecting upon ethical frameworks through narrative game design.
+TechTrends 70, 2 (2026), 308–319. DOI:https://doi.org/10.1007/s11528- 025- 01147- 0
+J. Friedhoff. 2013. Untangling twine: A platform study. In Proceedings of the 2013 DiGRA International Conference. Digital
+Games Research Association. DOI:https://doi.org/10.26503/dl.v2013i1.693
+M. Frydenberg. 2015. Creating games as authentic learning in the information technology classroom. In Proceedings of the
+International Conference e-Learning. International Association for Development of the Information Society.
+E. Gee and J. P. Gee. 2017. Games as distributed teaching and learning systems. Teachers College Record 119, 12 (2017), 1–22.
+DOI:https://doi.org/10.1177/016146811711901202
+N. Glaser, L. Jensen, T. Riedy, M. Center, J. Shifflett, and J. Griffin. 2024. Unlocking the Everdoor: Analyzing the serious
+game Spiritfarer. Educational Technology Research and Development 72, 4 (2024), 1947–1975. DOI:https://doi.org/10.1007/
+s11423- 024- 10357- x
+G. H. Iten, S. T. Steinemann, and K. Opwis. 2017. To save or to sacrifice? Understanding meaningful choices in games.
+In Extended Abstracts Publication of the Annual Symposium on Computer-Human Interaction in Play. ACM, 495–502.
+DOI:https://doi.org/10.1145/3130859.3131309
+G. H. Iten, S. T. Steinemann, and K. Opwis. 2018. Choosing to help monsters: A mixed-method examination of meaningful
+choices in narrative-rich games and interactive narratives. In Proceedings of the 2018 CHI Conference on Human Factors
+in Computing Systems. ACM, 1–13. DOI:https://doi.org/10.1145/3173574.3173915
+Y. B. Kafai and Q. Burke. 2015. Constructionist gaming: Understanding the benefits of making games for learning. Educa-
+tional Psychologist 50, 4 (2015), 313–334. DOI:https://doi.org/10.1080/00461520.2015.1124022
+D. R. May and M. T. Luth. 2013. The effectiveness of ethics education: A quasi-experimental field study. Science and Engi-
+neering Ethics 19 (2013), 545–568. DOI:https://doi.org/10.1007/s11948- 011- 9349- 0
+L. Nadolny, A. Valai, N. J. Cherrez, D. Elrick, A. Lovett, and M. Nowatzke. 2020. Examining the characteristics of game-
+based learning: A content analysis and design framework. Computers & Education 156 (2020), 1–13. DOI:https://doi.org/
+10.1016/j.compedu.2020.103936
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.
+Enriching Ethics Education Through Game Design 3:17
+R. Owston, H. Wideman, N.S. Ronda, and C. Brown. 2009. Computer game development as a literacy activity. Computers
+& Education 53, 3 (2009), 977–989. DOI:https://doi.org/10.1016/j.compedu.2009.05.015
+S. Papert. 1980. Mindstorms: Children, Computers, and Powerful Ideas. Basic Books.
+L. Pope. 2013. Papers, please [Video game]. 3909 LLC.
+H.-R. Roine, M. Meriläinen, and V. Kankainen. 2021. Jamming the assessment: The viability of a ‘Twine’ game jam as a
+learning evaluation tool in higher education. Journal of Play in Adulthood 3, 2 (2021), 96–112. DOI:https://doi.org/10.
+5920/jpa.846
+K. Salen and E. Zimmerman. 2004. Rules of Play: Game Design Fundamentals. MIT Press.
+A. Salter. 2016. Playing at empathy: Representing and experiencing emotional growth through Twine games. In Proceedings
+of the 2016 IEEE International Conference on Serious Games and Applications for Health (SeGAH). IEEE, 1–8.
+K. Schrier. 2014. The weird humanity of I Have No Mouth, and I Must Scream. Well Played 3, 2 (2014), 145–64.
+K. Schrier. 2015. EPIC: A framework for using video games in ethics education. Journal of Moral Education 44, 4 (2015),
+393–424. DOI:https://doi.org/10.1080/03057240.2015.1095168
+K. Schrier. 2017. Designing role-playing video games for ethical thinking. Educational Technology Research and Development
+65 (2017), 831–868. DOI:https://doi.org/10.1007/s11423- 016- 9489- 7
+K. Schrier. 2019. Designing Ourselves. Anti-Defamation League.
+K. Schrier, S. Eskander, G. Beaudoin, N. Fisher, P. Harden, S. Levine, K. Sarnecky, A. Shaenfield, and E. Alvarico. 2022.
+Creating morality through play: Digital games, moral perspective-taking, and empathy. In Creativity and Morality. H.
+Kapoor and J. Kaufman (Eds.), Elsevier.
+K. Schrier, E. Ohu, I. Bodunde, M. Alugo, C. Emami, and A. Babatunde. 2021. Piloting a game jam in Nigeria to support
+empathy and compassion. In Proceedings of the 6th Annual International Conference on Game Jams, Hackathons, and
+Game Creation Events. ACM, 60–63.
+R. Shafer-Landau. 2020. The Fundamentals of Ethics (5th ed.). Oxford University Press.
+D. Staines, M. Consalvo, A. Stangeby, and S. Pedraça. 2019. State of play: Video games and moral engagement. Journal of
+Gaming & Virtual Worlds 11, 3 (2019), 271–288. DOI:https://doi.org/10.1386/jgvw.11.3.271_1
+D. R. Thomas. 2006. A general inductive approach for analyzing qualitative evaluation data. American Journal of Evaluation
+27, 2 (2006), 237–246. DOI:https://doi.org/10.1177/1098214005283748
+T. Thompson. 2020. Choose your own murder: Non-linear narratives enhance student understanding in forensic science
+education. Forensic Science International: Synergy 2 (2020), 82–85. DOI:https://doi.org/10.1016/j.fsisyn.2020.01.009
+K. Thumlert, S. de Castell, and J. Jenson. 2018. Learning through game design: A production pedagogy. In Proceedings of
+the 12th European Conference on Game-Based Learning. ACPI, 693–701.
+C. Weng, C. Chen, and X. Ai. 2023. A pedagogical study on promoting students’ deep learning through design-based
+learning. International Journal of Technology and Design Education 33, 4 (2023), 1653–1674. DOI:https://doi.org/10.1007/
+s10798- 022- 09789- 4
+Y. T. C. Yang and C. H. Chang. 2013. Empowering students through digital game authorship: Enhancing concentration,
+critical thinking, and academic achievement. Computers & Education 68 (2013), 334–344. DOI:https://doi.org/10.1016/j.
+compedu.2013.05.023
+J. P. Zagal. 2009. Ethically notable videogames: Moral dilemmas and gameplay. In Proceedings of the 2009 DiGRA Interna-
+tional Conference. Digital Games Research Association.
+Received 30 May 2025; revised 29 July 2026; accepted 19 August 2026
+ACM Games, Vol. 5, No. 1, Article 3. Publication date: March 2027.

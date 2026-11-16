@@ -1,6 +1,8 @@
 package edu.sentencebuilder.ui;
 
 import edu.sentencebuilder.dao.WordDAO;
+import edu.sentencebuilder.dao.WordPairDAO;
+import edu.sentencebuilder.generator.Follower;
 import edu.sentencebuilder.model.Word;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
@@ -11,6 +13,7 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -18,6 +21,8 @@ import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.util.StringConverter;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -37,8 +42,20 @@ public class WordsReportController {
     @FXML private TableColumn<Word, Integer> totalColumn;
     @FXML private TableColumn<Word, Integer> startColumn;
     @FXML private TableColumn<Word, Integer> endColumn;
+    @FXML private Label followersTitle;
+    @FXML private Label followersStatus;
+    @FXML private Button followersRefreshButton;
+    @FXML private TableView<FollowerDetails> followersTable;
+    @FXML private TableColumn<FollowerDetails, String> followerColumn;
+    @FXML private TableColumn<FollowerDetails, Integer> importedColumn;
+    @FXML private TableColumn<FollowerDetails, Integer> userColumn;
+    @FXML private TableColumn<FollowerDetails, Long> weightColumn;
+    @FXML private TableColumn<FollowerDetails, Double> probabilityColumn;
 
     private final WordDAO wordDAO = new WordDAO();
+    private final WordPairDAO wordPairDAO = new WordPairDAO(wordDAO);
+    /** Invalidates results from older selections, including a selection cleared by filtering. */
+    private long followersRequest;
     /** Every loaded word; refreshes replace its contents so the filter and sort stay in place. */
     private final ObservableList<Word> allWords = FXCollections.observableArrayList();
     private FilteredList<Word> filteredWords;
@@ -63,6 +80,22 @@ public class WordsReportController {
         sortedWords.comparatorProperty().bind(wordTable.comparatorProperty());
         wordTable.setItems(sortedWords);
         wordTable.getSortOrder().add(textColumn); // alphabetical by default
+        followerColumn.setCellValueFactory(c -> new ReadOnlyStringWrapper(c.getValue().text()));
+        importedColumn.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().importedCount()));
+        userColumn.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().userCount()));
+        weightColumn.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().weight()));
+        probabilityColumn.setCellValueFactory(c -> new ReadOnlyObjectWrapper<>(c.getValue().probability()));
+        probabilityColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(Double probability, boolean empty) {
+                super.updateItem(probability, empty);
+                setText(empty || probability == null ? null : String.format(Locale.ROOT, "%.1f%%", probability * 100));
+            }
+        });
+        weightColumn.setSortType(TableColumn.SortType.DESCENDING);
+        followersTable.getSortOrder().add(weightColumn);
+        followersTable.setPlaceholder(new Label("Select a word to inspect its followers."));
+        wordTable.getSelectionModel().selectedItemProperty().addListener((obs, old, word) -> onInspectFollowers());
         // No load here: MainController calls refresh() whenever this tab is opened.
     }
 
@@ -80,7 +113,13 @@ public class WordsReportController {
         statusLabel.setText("Loading words…");
         Background.run("load-words", wordDAO::findAll,
                 words -> {
+                    Word selected = wordTable.getSelectionModel().getSelectedItem();
+                    wordTable.getSelectionModel().clearSelection();
                     allWords.setAll(words);
+                    if (selected != null) {
+                        wordTable.getItems().stream().filter(w -> w.getWordId() == selected.getWordId())
+                                .findFirst().ifPresent(wordTable.getSelectionModel()::select);
+                    }
                     refreshButton.setDisable(false);
                     updateStatus();
                 },
@@ -89,6 +128,52 @@ public class WordsReportController {
                     statusLabel.setText(Background.describe(error));
                 });
     }
+
+    /** Reloads the selected word's followers off the FX thread; stale replies never replace newer ones. */
+    @FXML
+    private void onInspectFollowers() {
+        long request = ++followersRequest;
+        Word word = wordTable.getSelectionModel().getSelectedItem();
+        followersTable.getItems().clear();
+        followersRefreshButton.setDisable(word == null);
+        if (word == null) {
+            followersTitle.setText("Word-pair inspector");
+            followersStatus.setText("Select a word above to see what can follow it.");
+            followersTable.setPlaceholder(new Label("Select a word to inspect its followers."));
+            return;
+        }
+        String text = word.getText();
+        followersTitle.setText("Words following “" + text + "”");
+        followersStatus.setText("Loading followers…");
+        followersTable.setPlaceholder(new Label("Loading…"));
+        Background.run("load-followers", () -> followerDetails(wordPairDAO.getFollowers(text)),
+                rows -> {
+                    if (request != followersRequest) return;
+                    followersTable.getItems().setAll(rows);
+                    followersTable.sort();
+                    followersTable.setPlaceholder(new Label("No followers recorded for this word."));
+                    followersStatus.setText(rows.isEmpty() ? "No followers recorded for “" + text + "”."
+                            : rows.size() + (rows.size() == 1 ? " follower" : " followers"));
+                },
+                error -> {
+                    if (request != followersRequest) return;
+                    followersTable.setPlaceholder(new Label("Could not load followers. Press Refresh followers to retry."));
+                    followersStatus.setText(Background.describe(error));
+                });
+    }
+
+    /** Conditional next-word probabilities; sentence-ending decisions are handled separately by generators. */
+    static List<FollowerDetails> followerDetails(List<Follower> followers) {
+        long totalWeight = followers.stream().mapToLong(f -> (long) f.count() + f.userCount()).sum();
+        return followers.stream().map(f -> {
+            long weight = (long) f.count() + f.userCount();
+            return new FollowerDetails(f.text(), f.count(), f.userCount(), weight,
+                    totalWeight == 0 ? 0 : (double) weight / totalWeight);
+        }).toList();
+    }
+
+    /** Read-only row for the inspector; long arithmetic avoids overflow when adding stored counts. */
+    record FollowerDetails(String text, int importedCount, int userCount, long weight, double probability) {}
 
     /** Makes a count column editable; a commit validates, updates the Word, and saves it. */
     private void setUpCountColumn(TableColumn<Word, Integer> column,

@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.6**
+Current version: **2.7**
 
 ## Instructions for future updates
 
@@ -30,6 +30,26 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.7 — 2026-11-16
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Word-pair inspector in Words Report and sample text files for application testing.
+
+### Changes
+
+- **`WordsReportController.java` / `words_report.fxml`:** Added a resizable detail panel below the existing word table. Selecting a word loads its followers with imported count, user count, combined weight, and weighted-random selection probability. Probabilities apply when generation continues; sentence-ending decisions are separate. Columns are sortable, initially by weight descending.
+- Follower lookups run in background tasks. Results from older selections are ignored, and loading, empty-selection, no-followers, and database-error states clear previous rows. Refresh followers reloads the selected word's data or retries a failed lookup. Refreshing Words Report preserves the selected word if it remains visible and reloads its followers.
+- **`WordsReportControllerTest.java`:** Added three tests covering probabilities from imported and user counts, empty and zero-weight results, and overflow-safe arithmetic for large combined counts. The unit suite increases from 127 to 130 tests.
+- **`samples/` / `.gitignore`:** Added 13 book and article text files for manual imports, kept outside `src/` so Maven does not bundle them as application resources. Removed the `samples/` ignore rule so the files can be version-controlled.
+- **Documentation:** Updated the README to describe the inspector and test coverage. Removed `docs/manual-ui-checks.md`.
+
+### Verification
+
+- `mvn -o clean test`: all 130 unit tests passed, with zero failures, errors, or skipped tests. FXML XML syntax validation and `git diff --check` also passed.
+- The contributor reported testing the running application with the added text files and that it worked. Specific checks for rapid selection changes, empty followers, refresh, and database failure recovery were not individually reported.
+- The MySQL integration suite was not rerun for this checkpoint.
 
 ## Version 2.6 — 2026-11-10
 
