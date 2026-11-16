@@ -42,6 +42,15 @@ class WordsReportControllerTest {
         assertEquals(0.5, rows.getFirst().probability());
     }
 
+    @Test
+    void inspectorClampsNegativeCombinedWeights() {
+        var rows = WordsReportController.followerDetails(List.of(
+                new Follower("invalid", -10, 1), new Follower("valid", 2, 0)));
+        assertEquals(0L, rows.get(0).weight());
+        assertEquals(0.0, rows.get(0).probability());
+        assertEquals(1.0, rows.get(1).probability());
+    }
+
     private static Word word(String text) {
         return new Word(1, text, 5, 1, 1, null);
     }

@@ -11,6 +11,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
+import javafx.concurrent.Task;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
@@ -24,6 +25,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
@@ -56,6 +60,15 @@ public class WordsReportController {
     private final WordPairDAO wordPairDAO = new WordPairDAO(wordDAO);
     /** Invalidates results from older selections, including a selection cleared by filtering. */
     private long followersRequest;
+    private boolean restoringSelection;
+    private Task<?> followersTask;
+    // At most one JDBC lookup runs and one waits. Only the FX thread submits work.
+    private final ThreadPoolExecutor followersExecutor = new ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(1), work -> {
+                Thread worker = new Thread(work, "load-followers");
+                worker.setDaemon(true);
+                return worker;
+            });
     /** Every loaded word; refreshes replace its contents so the filter and sort stay in place. */
     private final ObservableList<Word> allWords = FXCollections.observableArrayList();
     private FilteredList<Word> filteredWords;
@@ -95,7 +108,9 @@ public class WordsReportController {
         weightColumn.setSortType(TableColumn.SortType.DESCENDING);
         followersTable.getSortOrder().add(weightColumn);
         followersTable.setPlaceholder(new Label("Select a word to inspect its followers."));
-        wordTable.getSelectionModel().selectedItemProperty().addListener((obs, old, word) -> onInspectFollowers());
+        wordTable.getSelectionModel().selectedItemProperty().addListener((obs, old, word) -> {
+            if (!restoringSelection) onInspectFollowers();
+        });
         // No load here: MainController calls refresh() whenever this tab is opened.
     }
 
@@ -114,12 +129,21 @@ public class WordsReportController {
         Background.run("load-words", wordDAO::findAll,
                 words -> {
                     Word selected = wordTable.getSelectionModel().getSelectedItem();
-                    wordTable.getSelectionModel().clearSelection();
-                    allWords.setAll(words);
-                    if (selected != null) {
-                        wordTable.getItems().stream().filter(w -> w.getWordId() == selected.getWordId())
-                                .findFirst().ifPresent(wordTable.getSelectionModel()::select);
+                    restoringSelection = true;
+                    try {
+                        wordTable.getSelectionModel().clearSelection();
+                        allWords.setAll(words);
+                        if (selected != null) {
+                            wordTable.getItems().stream().filter(w -> w.getWordId() == selected.getWordId())
+                                    .findFirst().ifPresent(word -> {
+                                        wordTable.getSelectionModel().select(word);
+                                        wordTable.scrollTo(word);
+                                    });
+                        }
+                    } finally {
+                        restoringSelection = false;
                     }
+                    onInspectFollowers();
                     refreshButton.setDisable(false);
                     updateStatus();
                 },
@@ -133,6 +157,8 @@ public class WordsReportController {
     @FXML
     private void onInspectFollowers() {
         long request = ++followersRequest;
+        if (followersTask != null) followersTask.cancel(false);
+        followersExecutor.getQueue().clear();
         Word word = wordTable.getSelectionModel().getSelectedItem();
         followersTable.getItems().clear();
         followersRefreshButton.setDisable(word == null);
@@ -146,7 +172,7 @@ public class WordsReportController {
         followersTitle.setText("Words following “" + text + "”");
         followersStatus.setText("Loading followers…");
         followersTable.setPlaceholder(new Label("Loading…"));
-        Background.run("load-followers", () -> followerDetails(wordPairDAO.getFollowers(text)),
+        followersTask = Background.run(followersExecutor, () -> followerDetails(wordPairDAO.getFollowers(text)),
                 rows -> {
                     if (request != followersRequest) return;
                     followersTable.getItems().setAll(rows);
@@ -164,9 +190,9 @@ public class WordsReportController {
 
     /** Conditional next-word probabilities; sentence-ending decisions are handled separately by generators. */
     static List<FollowerDetails> followerDetails(List<Follower> followers) {
-        long totalWeight = followers.stream().mapToLong(f -> (long) f.count() + f.userCount()).sum();
+        long totalWeight = followers.stream().mapToLong(Follower::weight).sum();
         return followers.stream().map(f -> {
-            long weight = (long) f.count() + f.userCount();
+            long weight = f.weight();
             return new FollowerDetails(f.text(), f.count(), f.userCount(), weight,
                     totalWeight == 0 ? 0 : (double) weight / totalWeight);
         }).toList();

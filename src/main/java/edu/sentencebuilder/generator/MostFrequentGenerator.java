@@ -34,7 +34,7 @@ public class MostFrequentGenerator extends SentenceGenerator {
         List<Follower> sortedFollowers = new ArrayList<>(followers);
 
         // Sort descending by total weight (count + userCount)
-        sortedFollowers.sort((f1, f2) -> Integer.compare(f2.weight(), f1.weight()));
+        sortedFollowers.sort((f1, f2) -> Long.compare(f2.weight(), f1.weight()));
 
         for (Follower candidate : sortedFollowers) {
             String nextWord = candidate.text();

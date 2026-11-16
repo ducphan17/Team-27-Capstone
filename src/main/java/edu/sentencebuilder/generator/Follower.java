@@ -12,7 +12,7 @@ package edu.sentencebuilder.generator;
 public record Follower(String text, int count, int userCount) {
 
     /** Combined weight used for weighted choices. */
-    public int weight() {
-        return count + userCount;
+    public long weight() {
+        return Math.max(0L, (long) count + userCount);
     }
 }

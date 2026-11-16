@@ -35,20 +35,24 @@ Entry template:
 
 **Author:** Aalvee Ahtav
 
-**Checkpoint:** Word-pair inspector in Words Report and sample text files for application testing.
+**Checkpoint:** Word-pair inspector in Words Report and public-domain sample texts for application testing, including review fixes.
 
 ### Changes
 
 - **`WordsReportController.java` / `words_report.fxml`:** Added a resizable detail panel below the existing word table. Selecting a word loads its followers with imported count, user count, combined weight, and weighted-random selection probability. Probabilities apply when generation continues; sentence-ending decisions are separate. Columns are sortable, initially by weight descending.
-- Follower lookups run in background tasks. Results from older selections are ignored, and loading, empty-selection, no-followers, and database-error states clear previous rows. Refresh followers reloads the selected word's data or retries a failed lookup. Refreshing Words Report preserves the selected word if it remains visible and reloads its followers.
-- **`WordsReportControllerTest.java`:** Added three tests covering probabilities from imported and user counts, empty and zero-weight results, and overflow-safe arithmetic for large combined counts. The unit suite increases from 127 to 130 tests.
-- **`samples/` / `.gitignore`:** Added 13 book and article text files for manual imports, kept outside `src/` so Maven does not bundle them as application resources. Removed the `samples/` ignore rule so the files can be version-controlled.
-- **Documentation:** Updated the README to describe the inspector and test coverage. Removed `docs/manual-ui-checks.md`.
+- Follower lookups use a single daemon worker with at most one pending lookup. New selections cancel the previous task without interrupting active JDBC work, discard obsolete queued lookups, and ignore outdated results. Loading, empty-selection, no-followers, and database-error states clear previous rows. Refresh followers reloads counts or retries failures.
+- Refreshing Words Report restores the selected word when it remains visible, scrolls it into view, and reloads followers once after selection restoration, avoiding the intermediate no-selection state.
+- **`Follower.java` / generators:** Centralized combined weight as `Math.max(0L, (long) count + userCount)` so the inspector and both generators use the same overflow-safe, nonnegative weights. Most frequent compares weights as `long`; weighted random uses the shared weight directly.
+- **Tests:** Added seven tests since v2.6 covering inspector probabilities, empty/zero-weight results, large combined counts, negative-weight clamping, and generator overflow behavior. The unit suite increases from 127 to 134 tests.
+- **`samples/` / `.gitignore`:** Added seven public-domain literary text samples outside Maven resources and removed the `samples/` ignore rule. Removed the three modern academic papers to keep a public-domain-only sample set, and removed Death in the Woods and Other Stories (1933), Spring Came on Forever (1935), and Since Yesterday (1939) because US redistribution rights were not established.
+- Corrected sample filenames, including `Untitled.txt` to `Sweeney Todd.txt` and removing misleading “Chapter 1” labels from full books. Removed Gutenberg headers, license boilerplate, and branding footers from the import text. Added `samples/README.md` with source links, publication dates, transcription credits, and cleanup/rights notes.
+- **Documentation:** Updated the README for inspector behavior, 134-test coverage, and the recorded `mvn -o clean test` command. Removed `docs/manual-ui-checks.md` and its current README references; pending interface checks, including those from v1.8–v2.0 and the inspector, are summarized in the README's **Still to do** list.
 
 ### Verification
 
-- `mvn -o clean test`: all 130 unit tests passed, with zero failures, errors, or skipped tests. FXML XML syntax validation and `git diff --check` also passed.
-- The contributor reported testing the running application with the added text files and that it worked. Specific checks for rapid selection changes, empty followers, refresh, and database failure recovery were not individually reported.
+- After the review fixes, `mvn -o clean test` passed all 134 unit tests, with zero failures, errors, or skipped tests. `git diff --check` passed. Initial inspector verification also included FXML XML syntax validation.
+- Verified that all seven retained sample texts preserve contiguous source content and omit Gutenberg boilerplate.
+- The contributor reported testing the running application with the initially added text files and that it worked. The JavaFX app was not rerun after the review fixes; inspector layout, rapid selection changes, empty followers, refresh, and database recovery remain pending.
 - The MySQL integration suite was not rerun for this checkpoint.
 
 ## Version 2.6 — 2026-11-10

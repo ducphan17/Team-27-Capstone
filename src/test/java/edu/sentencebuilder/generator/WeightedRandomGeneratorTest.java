@@ -104,6 +104,22 @@ class WeightedRandomGeneratorTest {
         assertTrue(Math.abs(share - 0.75) < 0.02, "expected ~0.75 but was " + share);
     }
 
+    @Test
+    void largeCombinedWeightRemainsEligible() {
+        var generator = new WeightedRandomGenerator(new FakeStats(), new Random(42));
+        assertEquals("large", generator.chooseNext("x",
+                List.of(new Follower("large", Integer.MAX_VALUE, Integer.MAX_VALUE)), List.of("x")));
+    }
+
+    @Test
+    void negativeWeightCannotDistortTheDraw() {
+        var generator = new WeightedRandomGenerator(new FakeStats(), new Random(42));
+        var followers = List.of(new Follower("invalid", -10, 1), new Follower("valid", 1, 0));
+        for (int i = 0; i < 100; i++) {
+            assertEquals("valid", generator.chooseNext("x", followers, List.of("x")));
+        }
+    }
+
     private static int wordCount(String sentence) {
         return sentence.split(" ").length;
     }
