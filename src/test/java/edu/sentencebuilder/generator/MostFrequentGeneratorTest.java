@@ -11,6 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class MostFrequentGeneratorTest {
 
     @Test
+    void ranksCombinedCountsWithoutOverflow() {
+        var generator = new MostFrequentGenerator(new WeightedRandomGeneratorTest.FakeStats());
+        assertEquals("large", generator.chooseNext("x", List.of(
+                new Follower("small", 10, 0),
+                new Follower("large", Integer.MAX_VALUE, Integer.MAX_VALUE)), List.of("x")));
+    }
+
+    @Test
     public void testLoopAvoidanceBreaksInfiniteBigram() {
         // 1. Create a fake in-memory WordStatsSource
         WordStatsSource fakeSource = new WordStatsSource() {

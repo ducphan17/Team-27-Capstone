@@ -27,14 +27,14 @@ public class WeightedRandomGenerator extends SentenceGenerator {
     protected String chooseNext(String current, List<Follower> followers, List<String> sentenceSoFar) {
         long totalWeight = 0;
         for (Follower f : followers) {
-            totalWeight += Math.max(0, f.weight());
+            totalWeight += f.weight();
         }
         if (totalWeight <= 0) {
             return null;
         }
         long draw = random.nextLong(totalWeight);
         for (Follower f : followers) {
-            draw -= Math.max(0, f.weight());
+            draw -= f.weight();
             if (draw < 0) {
                 return f.text();
             }
