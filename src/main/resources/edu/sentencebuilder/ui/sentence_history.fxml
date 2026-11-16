@@ -10,11 +10,11 @@
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="edu.sentencebuilder.ui.SentenceHistoryController" spacing="12"
-      stylesheets="@app.css">
-    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-    <HBox spacing="8">
+      styleClass="page">
+    <Label text="Sentence History" styleClass="page-title"/>
+    <HBox spacing="12" alignment="CENTER_LEFT">
         <Button fx:id="refreshButton" text="Refresh" onAction="#onRefresh"/>
-        <Label text="Newest first. Highlighted rows were generated more than once."/>
+        <Label text="Newest first. Highlighted rows were generated more than once." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
     </HBox>
     <TableView fx:id="sentenceTable" VBox.vgrow="ALWAYS">
         <columns>

@@ -1,32 +1,31 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ProgressBar?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.VBox?>
-
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="edu.sentencebuilder.ui.ImportController" spacing="12">
-    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-    <Label text="Import a .txt file to add its word and word-pair statistics to the database."/>
-    <Button fx:id="chooseButton" text="Choose file..." onAction="#onChooseFile"/>
-    <ProgressBar fx:id="progressBar" progress="0" maxWidth="Infinity"/>
-    <Label fx:id="statusLabel" text="No file imported yet."/>
-
-    <!-- Paulo Nicart, added elapsed time display -->
-    <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0"/>
-
-    <Label text="Import history (newest first). Batch Generate additions are listed as batch-generated."/>
-    <TableView fx:id="fileTable" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="filenameColumn" text="File" prefWidth="260"/>
-            <TableColumn fx:id="wordCountColumn" text="Words" prefWidth="80"/>
-            <TableColumn fx:id="sentenceCountColumn" text="Sentences" prefWidth="80"/>
-            <TableColumn fx:id="importedColumn" text="Imported" prefWidth="150"/>
-        </columns>
-    </TableView>
-    <Label fx:id="historyLabel" text=" "/>
+      fx:controller="edu.sentencebuilder.ui.ImportController" styleClass="page" spacing="20">
+    <VBox spacing="5"><Label text="Import" styleClass="page-title"/>
+        <Label text="Add a text file to build your word and word-pair statistics." styleClass="muted" wrapText="true" minHeight="-Infinity"/></VBox>
+    <HBox spacing="20" VBox.vgrow="ALWAYS">
+        <VBox styleClass="panel,settings-panel" spacing="14" minWidth="270" prefWidth="310" maxWidth="310">
+            <Label text="Source text" styleClass="section-title"/>
+            <Label text="Choose a .txt file to add to your corpus." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
+            <Button fx:id="chooseButton" text="Choose file…" onAction="#onChooseFile" styleClass="primary" maxWidth="Infinity"/>
+            <ProgressBar fx:id="progressBar" progress="0" maxWidth="Infinity"/>
+            <Label fx:id="statusLabel" text="No file imported yet." wrapText="true" minHeight="-Infinity"/>
+            <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0" styleClass="muted"/>
+        </VBox>
+        <VBox styleClass="panel" spacing="14" HBox.hgrow="ALWAYS" minWidth="0">
+            <Label text="Import history" styleClass="section-title"/>
+            <Label text="Newest first. Corpus additions appear as batch-generated." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
+            <TableView fx:id="fileTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="filenameColumn" text="File" prefWidth="210"/>
+                    <TableColumn fx:id="wordCountColumn" text="Words" prefWidth="80"/>
+                    <TableColumn fx:id="sentenceCountColumn" text="Sentences" prefWidth="90"/>
+                    <TableColumn fx:id="importedColumn" text="Imported" prefWidth="150"/>
+                </columns>
+            </TableView>
+            <Label fx:id="historyLabel" text=" " wrapText="true" minHeight="-Infinity" styleClass="muted"/>
+        </VBox>
+    </HBox>
 </VBox>

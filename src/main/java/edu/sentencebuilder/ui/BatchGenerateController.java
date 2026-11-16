@@ -19,6 +19,7 @@ import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.concurrent.Task;
+import javafx.css.PseudoClass;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -28,6 +29,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TextField;
 import javafx.util.StringConverter;
 import javafx.util.Duration;
 
@@ -47,6 +49,7 @@ import java.util.stream.Collectors;
  */
 public class BatchGenerateController {
 
+    @FXML private TextField startWordField;
     @FXML private Spinner<Integer> countSpinner;
     @FXML private ComboBox<String> algorithmBox;
     @FXML private ListView<GeneratedSentence> sentenceList;
@@ -126,6 +129,7 @@ public class BatchGenerateController {
 
         // Read the editor because typed values may not be committed yet.
         Integer count = parseCount(countSpinner.getEditor().getText());
+        statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), count == null);
         if (count == null) {
             statusLabel.setText(
                     "Number of sentences must be a whole number from 1 to 1000.");
@@ -136,6 +140,7 @@ public class BatchGenerateController {
 
         // Capture control values before starting the worker thread.
         String algorithm = algorithmBox.getValue();
+        String startingWord = startWordField.getText();
 
         // A monotonic clock measures the whole batch, including database setup and saves.
         long startedAt = System.nanoTime();
@@ -149,7 +154,7 @@ public class BatchGenerateController {
                 updateMessage("Loading starting words…");
 
                 try {
-                    return generateBatch(count, algorithm, (saved, total) -> {
+                    return generateBatch(count, algorithm, startingWord, (saved, total) -> {
                         // Task safely forwards these updates to the FX thread.
                         updateProgress(saved, total);
                         updateMessage(
@@ -215,6 +220,7 @@ public class BatchGenerateController {
 
             progressBar.setProgress(0);
             setBusy(false);
+            statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), true);
             statusLabel.setText(
                     "Could not generate: "
                             + Background.describe(task.getException()));
@@ -234,8 +240,9 @@ public class BatchGenerateController {
     private BatchResult generateBatch(
             int count,
             String algorithm,
+            String startingWord,
             BiConsumer<Integer, Integer> reportProgress) throws Exception {
-        return generateBatch(count, algorithm, reportProgress,
+        return generateBatch(count, algorithm, startingWord, reportProgress,
                 Database::getConnection, new WordDAO(), new SentenceDAO());
     }
 
@@ -251,6 +258,21 @@ public class BatchGenerateController {
             BiConsumer<Integer, Integer> reportProgress,
             ConnectionFactory connections, WordDAO words, SentenceDAO sentences)
             throws Exception {
+        return generateBatch(count, algorithm, "", reportProgress, connections, words, sentences);
+    }
+
+    /** Blank input keeps weighted starting-word selection; a known word overrides it. */
+    static BatchResult generateBatch(
+            int count, String algorithm, String startingWord,
+            BiConsumer<Integer, Integer> reportProgress,
+            ConnectionFactory connections, WordDAO words, SentenceDAO sentences)
+            throws Exception {
+
+        String requestedStart = startingWord == null ? "" : startingWord.strip().toLowerCase(Locale.ROOT);
+        if (requestedStart.codePoints().anyMatch(Character::isWhitespace)) {
+            throw new IllegalArgumentException("Enter one starting word, or leave it blank for automatic selection.");
+        }
+        Word.validateTextLength(requestedStart);
 
         List<GeneratedSentence> saved = new ArrayList<>();
         WordPairDAO pairs = new WordPairDAO(words);
@@ -260,10 +282,14 @@ public class BatchGenerateController {
             // Each successful insert stays saved if a later sentence fails.
             conn.setAutoCommit(true);
 
-            List<Word> starters = words.findStartingWords(conn);
-            if (starters.isEmpty()) {
+            List<Word> starters = requestedStart.isEmpty() ? words.findStartingWords(conn) : List.of();
+            if (requestedStart.isEmpty() && starters.isEmpty()) {
                 throw new IllegalArgumentException(
                         "No starting words available. Import some text first.");
+            }
+            if (!requestedStart.isEmpty() && words.findByText(conn, requestedStart).isEmpty()) {
+                throw new IllegalArgumentException(
+                        "\"" + requestedStart + "\" isn't in the database yet. Import a text that contains it.");
             }
 
             // The DAO owns lookup error handling and leaves this connection open.
@@ -274,7 +300,8 @@ public class BatchGenerateController {
                     : new WeightedRandomGenerator(source);
 
             for (int i = 0; i < count; i++) {
-                String startWord = StartingWordPicker.pick(starters, random);
+                String startWord = requestedStart.isEmpty()
+                        ? StartingWordPicker.pick(starters, random) : requestedStart;
                 String text = generator.generate(startWord);
 
                 GeneratedSentence sentence = new GeneratedSentence(
@@ -306,6 +333,7 @@ public class BatchGenerateController {
         if (busy) {
             return;
         }
+        statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), false);
 
         // Snapshot the selection on the FX thread.
         // Already-added rows are excluded from subsequent imports.
@@ -360,6 +388,7 @@ public class BatchGenerateController {
     private void setBusy(boolean value) {
         busy = value;
         generateButton.setDisable(value);
+        startWordField.setDisable(value);
         countSpinner.setDisable(value);
         algorithmBox.setDisable(value);
         sentenceList.setDisable(value);

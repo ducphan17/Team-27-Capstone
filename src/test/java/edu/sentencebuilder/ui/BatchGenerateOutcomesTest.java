@@ -77,6 +77,86 @@ class BatchGenerateOutcomesTest {
     }
 
     @Test
+    void whitespaceStartingWordKeepsAutomaticSelection() throws Exception {
+        Connection conn = connection(false);
+        var result = BatchGenerateController.generateBatch(3, "Most frequent", " \t ",
+                (saved, total) -> progress.add(saved), () -> conn,
+                words(conn, false), sentences(conn, 0));
+        assertNull(result.failure());
+        assertTrue(result.sentences().stream().allMatch(s -> s.getStartWord().equals("hello")));
+        assertEquals(List.of(1, 2, 3), progress);
+    }
+
+    @Test
+    void chosenWordIsNormalizedAndUsedForEverySentenceWithOneConnection() throws Exception {
+        for (String algorithm : List.of("Most frequent", "Weighted random")) {
+            calls.clear();
+            Connection conn = connection(false);
+            int[] opened = {0};
+            WordDAO chosenWords = new WordDAO() {
+                @Override
+                public List<Word> findStartingWords(Connection connection) {
+                    fail("Explicit words must bypass automatic starting-word loading");
+                    return List.of();
+                }
+
+                @Override
+                public Optional<Word> findByText(Connection connection, String text) {
+                    assertSame(conn, connection);
+                    assertEquals("chosen", text);
+                    // A word need not have started an imported sentence to be explicitly chosen.
+                    return Optional.of(new Word(2, "chosen", 1, 0, 1, null));
+                }
+            };
+            var result = BatchGenerateController.generateBatch(3, algorithm, "  CHOSEN  ",
+                    (saved, total) -> {}, () -> { opened[0]++; return conn; },
+                    chosenWords, sentences(conn, 0));
+            assertEquals(1, opened[0]);
+            assertNull(result.failure());
+            assertEquals(3, result.sentences().size());
+            for (var sentence : result.sentences()) {
+                assertEquals("chosen", sentence.getStartWord());
+                assertEquals("Chosen.", sentence.getSentence());
+                assertEquals(algorithm, sentence.getAlgorithm());
+            }
+            assertEquals(List.of("setAutoCommit", "close"), calls);
+        }
+    }
+
+    @Test
+    void unknownStartingWordFailsBeforeAnySentencesAreSaved() {
+        Connection conn = connection(false);
+        WordDAO unknownWords = new WordDAO() {
+            @Override
+            public Optional<Word> findByText(Connection connection, String text) {
+                assertSame(conn, connection);
+                return Optional.empty();
+            }
+        };
+        var failure = assertThrows(IllegalArgumentException.class,
+                () -> BatchGenerateController.generateBatch(3, "Most frequent", "unknown",
+                        (saved, total) -> fail("No progress expected"), () -> conn,
+                        unknownWords, new SentenceDAO() {
+                            @Override
+                            public GeneratedSentence insert(Connection connection, GeneratedSentence sentence) {
+                                fail("No sentences should be saved");
+                                return sentence;
+                            }
+                        }));
+        assertTrue(failure.getMessage().contains("isn't in the database yet"));
+        assertEquals(List.of("setAutoCommit", "close"), calls);
+    }
+
+    @Test
+    void multipleStartingWordsAreRejectedBeforeOpeningConnection() {
+        var failure = assertThrows(IllegalArgumentException.class,
+                () -> BatchGenerateController.generateBatch(3, "Most frequent", "two words",
+                        (saved, total) -> {}, () -> { fail("No connection expected"); return null; },
+                        new WordDAO(), new SentenceDAO()));
+        assertTrue(failure.getMessage().contains("Enter one starting word"));
+    }
+
+    @Test
     void connectionFailureIsThrownToTheTask() {
         SQLException failure = new SQLException("connection failed");
         assertSame(failure, assertThrows(SQLException.class,
