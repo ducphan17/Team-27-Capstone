@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.7**
+Current version: **2.8**
 
 ## Instructions for future updates
 
@@ -30,6 +30,30 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.8 — 2026-11-16
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Split workspace redesign, optional batch starting word, Josefin Sans typography, and dark mode.
+
+### Changes
+
+- **Shared interface (`main.fxml`, `app.css`, and all six tab views):** Added a consistent app header, teal accents, clearer page headings, aligned fields, and bordered settings/results panels. Import, Generate, Batch Generate, and Autocomplete use side-by-side workspaces. Batch settings scroll in shorter windows. The default window is now 1120 × 740, with a 960 × 640 minimum.
+- **Words Report:** Moved the existing word-pair inspector beside the word table, with a draggable horizontal divider. Both tables resize their columns to use the available width. Updated the selection hint to match the new layout; editing, sorting, refresh, and follower-loading behavior remain available.
+- **`BatchGenerateController.java` / `batch_generate.fxml`:** Added **Starting word (optional)** with an **Automatic** placeholder. Blank or whitespace-only input keeps the existing selection weighted by `start_count`. A supplied word is trimmed and lowercased, checked against the database, and used for every sentence in the batch with either algorithm. Known words can be selected even if their `start_count` is zero. Multiple words, oversized words, and unknown words are rejected. The field is disabled while work runs; Enter starts generation.
+- **Batch validation:** Sentence-count validation messages are red. Generation errors, including invalid starting words, also use the error color; starting another valid operation clears the error state. Batch generation still opens one SQL connection and reuses it for starting-word validation/loading, generation lookups, and sentence inserts, retaining its existing partial-save behavior.
+- **`MainApp.java` / `fonts/` / `app.css`:** Bundled regular and bold Josefin Sans TrueType fonts with their SIL Open Font License. Fonts load before the interface is created and work offline without a system installation. Applied the family across the app with a 14-pixel base size.
+- **`MainController.java` / `main.fxml` / `app.css`:** Added a theme toggle in the header and shared light/dark color palettes for pages, panels, tabs, fields, tables, lists, selection, progress, duplicate highlights, and errors. Switching themes preserves the current view and entered text. The toggle offers **Light mode** while dark mode is active and **Dark mode** while light mode is active; its accessibility label follows the same action. Theme selection lasts for the current app session.
+- **Tests and documentation:** Added four batch regression tests for whitespace-only input, a normalized explicit word with both algorithms and one connection, unknown-word rejection before saving, and multiple-word rejection before opening a connection. Updated README descriptions for optional starting words and the inspector's placement.
+
+### Verification
+
+- `mvn -o test`: all 134 unit tests passed with zero failures, errors, or skipped tests after the dark-mode implementation. The subsequent toggle-label/accessibility-text change was checked with `git diff --check`; the test suite was not rerun for that small change.
+- Loaded and rendered all six JavaFX screens. Checked the split layouts and bundled Josefin Sans, including bold headings. Rendered every screen in both themes and verified that toggling updates the root theme state without changing entered text. Checked that the app accepts its minimum window size. `git diff --check` passed throughout these changes.
+- A contributor screenshot shows a completed 1000-sentence Weighted random batch with a full progress bar and an elapsed time of 12.7 seconds after the redesign. This is one observed run, not a controlled performance comparison, and predates the optional starting-word field.
+- The temporary UI preview encountered a macOS JavaFX native error while closing after one successful rendering check. Later previews rendered successfully; that shutdown issue was not investigated further.
+- Pending: verify the final toggle wording in the running app and exercise explicit-word generation against MySQL. The MySQL integration suite was not rerun; connection reuse and optional-word behavior were verified through tests with injected database dependencies.
 
 ## Version 2.7 — 2026-11-16
 
