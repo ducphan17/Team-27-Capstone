@@ -113,7 +113,7 @@ class BatchGenerateOutcomesTest {
                     chosenWords, sentences(conn, 0));
             assertEquals(1, opened[0]);
             assertNull(result.failure());
-            assertEquals(3, result.sentences().size());
+            assertEquals(algorithm.equals("Most frequent") ? 1 : 3, result.sentences().size());
             for (var sentence : result.sentences()) {
                 assertEquals("chosen", sentence.getStartWord());
                 assertEquals("Chosen.", sentence.getSentence());
@@ -121,6 +121,30 @@ class BatchGenerateOutcomesTest {
             }
             assertEquals(List.of("setAutoCommit", "close"), calls);
         }
+    }
+
+    @Test
+    void fixedMostFrequentStartSavesOnlyOneEvenForAThousandRequestedSentences() throws Exception {
+        Connection conn = connection(true);
+        var result = BatchGenerateController.generateBatch(1000, "Most frequent", "HELLO",
+                (saved, total) -> {
+                    assertEquals(1, total);
+                    progress.add(saved);
+                }, () -> conn, words(conn, false), sentences(conn, 2));
+        assertNull(result.failure());
+        assertEquals(1, result.sentences().size());
+        assertEquals(List.of(1), progress);
+        assertEquals(List.of("setAutoCommit", "close"), calls);
+    }
+
+    @Test
+    void oversizedStartingWordIsRejectedBeforeOpeningConnection() {
+        var failure = assertThrows(IllegalArgumentException.class,
+                () -> BatchGenerateController.generateBatch(3, "Weighted random", "a".repeat(101),
+                        (saved, total) -> fail("No progress expected"),
+                        () -> { fail("No connection expected"); return null; },
+                        new WordDAO(), new SentenceDAO()));
+        assertTrue(failure.getMessage().contains("100-character limit"));
     }
 
     @Test

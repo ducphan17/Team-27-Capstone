@@ -27,8 +27,22 @@ The Monster Mine and The Grindwell Governing Machine — Richard Scott and Colin
 Choat; Sweeney Todd and Through the Ivory Gate — Richard Scott. The supplied
 Little Men and Windy McPherson's Son files did not include transcriber credits.
 
-The three modern academic papers were removed to keep this folder limited to
-public-domain texts, rather than managing separate Creative Commons conditions.
+The three modern academic papers included in v2.7 were removed at that checkpoint.
+The SAGT introduction was subsequently added under the separate license below.
 Death in the Woods and Other Stories (1933), Spring Came on Forever (1935), and
 Since Yesterday (1939) were removed because US redistribution rights were not
 established. No inference is made that every post-1930 work is copyrighted.
+
+## Licensed academic sample
+
+`SAGT 2024 Special Issue Introduction.txt` contains “Introduction to the Special
+Issue for the Symposium on Algorithmic Game Theory (SAGT) 2024” by Guido Schäfer
+and Carmine Ventre, ACM Transactions on Economics and Computation 14(3), Article 8
+(September 2026), 2 pages.
+
+- Source: [ACM article, DOI 10.1145/3844354](https://doi.org/10.1145/3844354).
+- License: [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+  © 2026 Copyright held by the owner/author(s). This sample is licensed separately
+  from the public-domain literary texts above.
+- Modifications: converted to plain text for corpus import; author email addresses
+  removed. Author names, affiliations, reference, and license notice are retained.

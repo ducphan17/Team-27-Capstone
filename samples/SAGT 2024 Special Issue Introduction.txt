@@ -70,9 +70,7 @@ the SAGT 2024 Program Committee, the conference organizers, and the editorial te
 Transactions on Economics and Computation for their support in preparing this special issue.
 Guido Schäfer
 Centrum Wiskunde & Informatica, Netherlands and University of Amsterdam, Netherlands
-email: g.schaefer@cwi.nl
 Carmine Ventre
 King’s College London, United Kingdom of Great Britain and Northern Ireland
-email: carmine.ventre@kcl.ac.uk
 Guest Editors
 ACM Trans. Econ. Comput., Vol. 14, No. 3, Article 8. Publication date: September 2026.

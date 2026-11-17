@@ -1,10 +1,12 @@
 package edu.sentencebuilder.ui;
 
-import javafx.fxml.FXML;
 import javafx.css.PseudoClass;
+import javafx.fxml.FXML;
 import javafx.scene.control.Tab;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.VBox;
+
+import java.util.Locale;
 
 /**
  * Controller for {@code main.fxml}: reloads the Import history, Words Report, and
@@ -13,6 +15,8 @@ import javafx.scene.layout.VBox;
  * without pressing Refresh.
  */
 public class MainController {
+
+    private static final PseudoClass DARK = PseudoClass.getPseudoClass("dark");
 
     @FXML private VBox workspace;
     @FXML private ToggleButton darkModeToggle;
@@ -33,9 +37,9 @@ public class MainController {
 
     @FXML
     private void onToggleDarkMode() {
-        workspace.pseudoClassStateChanged(PseudoClass.getPseudoClass("dark"), darkModeToggle.isSelected());
+        workspace.pseudoClassStateChanged(DARK, darkModeToggle.isSelected());
         darkModeToggle.setText(darkModeToggle.isSelected() ? "Light mode" : "Dark mode");
-        darkModeToggle.setAccessibleText("Switch to " + darkModeToggle.getText().toLowerCase(java.util.Locale.ROOT));
+        darkModeToggle.setAccessibleText("Switch to " + darkModeToggle.getText().toLowerCase(Locale.ROOT));
     }
 
     private static void refreshWhenSelected(Tab tab, Runnable refresh) {

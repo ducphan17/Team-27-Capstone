@@ -3,9 +3,22 @@ package edu.sentencebuilder.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
 
 class BatchGenerateControllerTest {
+    @Test
+    void validatesAndNormalizesStartingWordBeforeStartingWork() {
+        assertEquals("", BatchGenerateController.normalizeStartingWord(null));
+        assertEquals("", BatchGenerateController.normalizeStartingWord(" \t "));
+        assertEquals("hello", BatchGenerateController.normalizeStartingWord(" HELLO "));
+        assertEquals("a".repeat(100), BatchGenerateController.normalizeStartingWord("a".repeat(100)));
+        for (String invalid : new String[]{"two words", "two\twords", "a".repeat(101)}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> BatchGenerateController.normalizeStartingWord(invalid));
+        }
+    }
+
     @Test
     void acceptsCountsWithinTheSupportedRange() {
         assertEquals(1, BatchGenerateController.parseCount("1"));

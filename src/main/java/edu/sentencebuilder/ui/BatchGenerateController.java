@@ -49,6 +49,8 @@ import java.util.stream.Collectors;
  */
 public class BatchGenerateController {
 
+    private static final PseudoClass ERROR = PseudoClass.getPseudoClass("error");
+
     @FXML private TextField startWordField;
     @FXML private Spinner<Integer> countSpinner;
     @FXML private ComboBox<String> algorithmBox;
@@ -128,19 +130,27 @@ public class BatchGenerateController {
         }
 
         // Read the editor because typed values may not be committed yet.
-        Integer count = parseCount(countSpinner.getEditor().getText());
-        statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), count == null);
-        if (count == null) {
+        Integer requestedCount = parseCount(countSpinner.getEditor().getText());
+        statusLabel.pseudoClassStateChanged(ERROR, requestedCount == null);
+        if (requestedCount == null) {
             statusLabel.setText(
                     "Number of sentences must be a whole number from 1 to 1000.");
             return;
         }
 
-        countSpinner.getValueFactory().setValue(count);
+        countSpinner.getValueFactory().setValue(requestedCount);
 
         // Capture control values before starting the worker thread.
         String algorithm = algorithmBox.getValue();
-        String startingWord = startWordField.getText();
+        String startingWord;
+        try {
+            startingWord = normalizeStartingWord(startWordField.getText());
+        } catch (IllegalArgumentException error) {
+            statusLabel.pseudoClassStateChanged(ERROR, true);
+            statusLabel.setText(error.getMessage());
+            return;
+        }
+        int count = batchCount(requestedCount, algorithm, startingWord);
 
         // A monotonic clock measures the whole batch, including database setup and saves.
         long startedAt = System.nanoTime();
@@ -196,6 +206,7 @@ public class BatchGenerateController {
 
             BatchResult result = task.getValue();
             int saved = result.sentences().size();
+            statusLabel.pseudoClassStateChanged(ERROR, result.failure() != null);
 
             sentenceList.getItems().setAll(result.sentences());
             progressBar.setProgress((double) saved / count);
@@ -203,7 +214,11 @@ public class BatchGenerateController {
 
             if (result.failure() == null) {
                 statusLabel.setText(
-                        "Generated and saved " + saved + " sentences.");
+                        saved == 1
+                                ? "Generated and saved 1 sentence." + (requestedCount > count
+                                    ? " Most frequent with a fixed starting word always produces the same sentence; saved only one."
+                                    : "")
+                                : "Generated and saved " + saved + " sentences.");
             } else {
                 statusLabel.setText(
                         "Saved " + saved + " of " + count + " sentences. "
@@ -220,7 +235,7 @@ public class BatchGenerateController {
 
             progressBar.setProgress(0);
             setBusy(false);
-            statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), true);
+            statusLabel.pseudoClassStateChanged(ERROR, true);
             statusLabel.setText(
                     "Could not generate: "
                             + Background.describe(task.getException()));
@@ -268,11 +283,8 @@ public class BatchGenerateController {
             ConnectionFactory connections, WordDAO words, SentenceDAO sentences)
             throws Exception {
 
-        String requestedStart = startingWord == null ? "" : startingWord.strip().toLowerCase(Locale.ROOT);
-        if (requestedStart.codePoints().anyMatch(Character::isWhitespace)) {
-            throw new IllegalArgumentException("Enter one starting word, or leave it blank for automatic selection.");
-        }
-        Word.validateTextLength(requestedStart);
+        String requestedStart = normalizeStartingWord(startingWord);
+        count = batchCount(count, algorithm, requestedStart);
 
         List<GeneratedSentence> saved = new ArrayList<>();
         WordPairDAO pairs = new WordPairDAO(words);
@@ -333,7 +345,7 @@ public class BatchGenerateController {
         if (busy) {
             return;
         }
-        statusLabel.pseudoClassStateChanged(PseudoClass.getPseudoClass("error"), false);
+        statusLabel.pseudoClassStateChanged(ERROR, false);
 
         // Snapshot the selection on the FX thread.
         // Already-added rows are excluded from subsequent imports.
@@ -379,6 +391,7 @@ public class BatchGenerateController {
                 },
                 error -> {
                     setBusy(false);
+                    statusLabel.pseudoClassStateChanged(ERROR, true);
                     statusLabel.setText(
                             "Could not add to corpus: "
                                     + Background.describe(error));
@@ -403,6 +416,20 @@ public class BatchGenerateController {
                         .anyMatch(sentence -> !sentence.isAddedToCorpus());
 
         addToCorpusButton.setDisable(busy || !hasEligibleSelection);
+    }
+
+    /** Shared by FX-thread validation and callers of the batch worker. */
+    static String normalizeStartingWord(String startingWord) {
+        String normalized = startingWord == null ? "" : startingWord.strip().toLowerCase(Locale.ROOT);
+        if (normalized.codePoints().anyMatch(Character::isWhitespace)) {
+            throw new IllegalArgumentException("Enter one starting word, or leave it blank for automatic selection.");
+        }
+        Word.validateTextLength(normalized);
+        return normalized;
+    }
+
+    private static int batchCount(int requestedCount, String algorithm, String startingWord) {
+        return "Most frequent".equals(algorithm) && !startingWord.isEmpty() ? 1 : requestedCount;
     }
 
     /** Returns null for blank, nonnumeric, or out-of-range input. */

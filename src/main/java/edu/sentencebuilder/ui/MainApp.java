@@ -14,16 +14,30 @@ import javafx.stage.Stage;
  */
 public class MainApp extends Application {
 
+    private static final System.Logger LOGGER = System.getLogger(MainApp.class.getName());
+
     @Override
     public void start(Stage stage) throws Exception {
         // Register bundled faces before CSS resolves regular and bold text.
+        boolean fontsLoaded = true;
         for (String face : new String[]{"Regular", "Bold"}) {
-            var resource = MainApp.class.getResource("fonts/JosefinSans-" + face + ".ttf");
-            if (resource == null || Font.loadFont(resource.toExternalForm(), 14) == null) {
-                throw new IllegalStateException("Could not load bundled Josefin Sans " + face + " font.");
+            try {
+                var resource = MainApp.class.getResource("fonts/JosefinSans-" + face + ".ttf");
+                if (resource == null || Font.loadFont(resource.toExternalForm(), 14) == null) {
+                    fontsLoaded = false;
+                    LOGGER.log(System.Logger.Level.WARNING,
+                            "Could not load bundled Josefin Sans " + face + " font; using the system font.");
+                }
+            } catch (RuntimeException error) {
+                fontsLoaded = false;
+                LOGGER.log(System.Logger.Level.WARNING,
+                        "Could not load bundled Josefin Sans " + face + " font; using the system font.", error);
             }
         }
         Parent root = FXMLLoader.load(MainApp.class.getResource("main.fxml"));
+        if (!fontsLoaded) {
+            root.setStyle("-fx-font-family: \"System\";");
+        }
         stage.setTitle("SentenceBuilder");
         stage.setScene(new Scene(root, 1120, 740));
         stage.setMinWidth(960);
