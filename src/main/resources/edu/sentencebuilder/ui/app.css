@@ -20,6 +20,7 @@
     -sb-accent-focus: #084b45;
     -sb-focus-halo: #0b756d22;
     -sb-error: #b42318;
+    -sb-warning: #9a7300;
     -sb-duplicate: #fde9b3;
     -fx-font-family: "Josefin Sans";
     -fx-font-size: 14px;
@@ -60,10 +61,12 @@
     -sb-accent-focus: #8fdcc6;
     -sb-focus-halo: #8fdcc633;
     -sb-error: #ff9b91;
+    -sb-warning: #facc15;
     -sb-duplicate: #594522;
 }
 .label { -fx-text-fill: -sb-text; }
 .label:error { -fx-text-fill: -sb-error; }
+.label.single-sentence-notice { -fx-text-fill: -sb-warning; }
 .app-header { -fx-padding: 18 28 14 28; -fx-background-color: -sb-surface; }
 .app-brand { -fx-font-size: 19px; -fx-font-weight: bold; }
 .tab-pane > .tab-header-area { -fx-padding: 0 28 0 28; }

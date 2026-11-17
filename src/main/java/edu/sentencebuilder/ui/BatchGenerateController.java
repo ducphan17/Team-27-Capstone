@@ -58,6 +58,7 @@ public class BatchGenerateController {
     @FXML private Button generateButton;
     @FXML private Button addToCorpusButton;
     @FXML private Label statusLabel;
+    @FXML private Label singleSentenceNotice;
     @FXML private ProgressBar progressBar;
     @FXML private Label elapsedLabel;
 
@@ -209,15 +210,16 @@ public class BatchGenerateController {
             statusLabel.pseudoClassStateChanged(ERROR, result.failure() != null);
 
             sentenceList.getItems().setAll(result.sentences());
+            singleSentenceNotice.setVisible(requestedCount > count);
+            singleSentenceNotice.setManaged(requestedCount > count);
             progressBar.setProgress((double) saved / count);
             setBusy(false);
 
             if (result.failure() == null) {
                 statusLabel.setText(
-                        saved == 1
-                                ? "Generated and saved 1 sentence." + (requestedCount > count
-                                    ? " Most frequent with a fixed starting word always produces the same sentence; saved only one."
-                                    : "")
+                        requestedCount > count
+                                ? "Batch complete."
+                                : saved == 1 ? "Generated and saved 1 sentence."
                                 : "Generated and saved " + saved + " sentences.");
             } else {
                 statusLabel.setText(

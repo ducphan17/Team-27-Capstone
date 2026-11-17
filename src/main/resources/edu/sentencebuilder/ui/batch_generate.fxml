@@ -24,6 +24,8 @@
         </ScrollPane>
         <VBox styleClass="panel" spacing="16" HBox.hgrow="ALWAYS" minWidth="0">
             <Label text="Generated sentences" styleClass="section-title"/>
+            <Label fx:id="singleSentenceNotice" text="(Generated and saved 1 sentence. Most frequent with a fixed starting word always produces the same sentence; saved only one.)"
+                   styleClass="single-sentence-notice" wrapText="true" minHeight="-Infinity" visible="false" managed="false"/>
             <ListView fx:id="sentenceList" minHeight="0" VBox.vgrow="ALWAYS"/>
             <Button fx:id="addToCorpusButton" text="Add selected to corpus" disable="true" onAction="#onAddToCorpus"/>
         </VBox>
