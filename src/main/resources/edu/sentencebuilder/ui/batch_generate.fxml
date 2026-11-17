@@ -1,58 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.ProgressBar?>
-<?import javafx.scene.control.Spinner?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="edu.sentencebuilder.ui.BatchGenerateController" spacing="12">
-    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-    <HBox spacing="8">
-        <Label text="Number of sentences:"/>
-        <Spinner fx:id="countSpinner" editable="true" min="1" max="1000" initialValue="10"/>
-        <Label text="Algorithm:"/>
-
-        <ComboBox fx:id="algorithmBox"/>
-
-        <Button
-            fx:id="generateButton"
-            text="Generate"
-            onAction="#onGenerate"
-        />
+      fx:controller="edu.sentencebuilder.ui.BatchGenerateController" styleClass="page" spacing="20">
+    <VBox spacing="5"><Label text="Batch Generate" styleClass="page-title"/>
+        <Label text="Generate several sentences, then add the ones you want to your corpus." styleClass="muted" wrapText="true" minHeight="-Infinity"/></VBox>
+    <HBox spacing="20" VBox.vgrow="ALWAYS">
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" minWidth="270" prefWidth="310" maxWidth="310" minHeight="0" styleClass="settings-scroll">
+        <VBox styleClass="panel,settings-panel" spacing="10">
+            <Label text="Starting word (optional)" styleClass="field-label" labelFor="$startWordField"/>
+            <TextField fx:id="startWordField" promptText="Automatic" onAction="#onGenerate"/>
+            <Label text="Number of sentences" styleClass="field-label" labelFor="$countSpinner"/>
+            <Spinner fx:id="countSpinner" editable="true" min="1" max="1000" initialValue="10" maxWidth="Infinity"/>
+            <Label text="Algorithm" styleClass="field-label" labelFor="$algorithmBox"/>
+            <ComboBox fx:id="algorithmBox" maxWidth="Infinity"/>
+            <Button fx:id="generateButton" text="Generate batch" onAction="#onGenerate" styleClass="primary" maxWidth="Infinity"/>
+            <Region minHeight="10"/>
+            <Label text="Batch progress" styleClass="section-title"/>
+            <ProgressBar fx:id="progressBar" progress="0" minHeight="24" prefHeight="24" maxHeight="24" maxWidth="Infinity"/>
+            <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0" styleClass="muted"/>
+            <Label fx:id="statusLabel" text="Generate a batch, then select sentences to add." wrapText="true" minHeight="-Infinity"/>
+        </VBox>
+        </ScrollPane>
+        <VBox styleClass="panel" spacing="16" HBox.hgrow="ALWAYS" minWidth="0">
+            <Label text="Generated sentences" styleClass="section-title"/>
+            <Label fx:id="singleSentenceNotice" text="(Generated and saved 1 sentence. Most frequent with a fixed starting word always produces the same sentence; saved only one.)"
+                   styleClass="single-sentence-notice" wrapText="true" minHeight="-Infinity" visible="false" managed="false"/>
+            <ListView fx:id="sentenceList" minHeight="0" VBox.vgrow="ALWAYS"/>
+            <Button fx:id="addToCorpusButton" text="Add selected to corpus" disable="true" onAction="#onAddToCorpus"/>
+        </VBox>
     </HBox>
-    <!-- Let the results shrink so the progress and timing controls keep their space. -->
-    <ListView fx:id="sentenceList" minHeight="0" VBox.vgrow="ALWAYS"/>
-    <!-- Only selected rows that have not already been imported are eligible. -->
-    <Button
-        fx:id="addToCorpusButton"
-        text="Add selected to corpus"
-        disable="true"
-        onAction="#onAddToCorpus"
-    />
-
-    <!-- Aalvee -->
-    <!-- The controller binds this to the running batch task. -->
-    <ProgressBar
-        fx:id="progressBar"
-        progress="0.0"
-        minHeight="24"
-        prefHeight="24"
-        maxHeight="24"
-        maxWidth="Infinity"
-    />
-
-    <!-- The elapsed counter resets for each batch and keeps its final duration. -->
-    <Label fx:id="elapsedLabel" text="Elapsed: 0:00.0"/>
-
-    <Label
-        fx:id="statusLabel"
-        text="Generate a batch, then select sentences to add."
-        wrapText="true"
-    />
 </VBox>

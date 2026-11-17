@@ -1,19 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.VBox?>
-
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="edu.sentencebuilder.ui.AutocompleteController" spacing="12">
-    <padding><Insets top="16" right="16" bottom="16" left="16"/></padding>
-    <Label text="Type a sentence. Words that often follow the last word you typed appear below; click one to add it. Sentences are saved when they end with . ! or ?. Press Enter to end the current sentence."
-           wrapText="true"/>
-    <TextField fx:id="inputField" promptText="Start typing..."/>
-    <Label fx:id="suggestionsLabel" text="Suggestions appear as you type a word that has been followed before." wrapText="true"/>
-    <ListView fx:id="suggestionList" VBox.vgrow="ALWAYS"/>
-    <!-- Shows what was saved last, or why a save failed. -->
-    <Label fx:id="statusLabel" wrapText="true"/>
+      fx:controller="edu.sentencebuilder.ui.AutocompleteController" styleClass="page" spacing="20">
+    <VBox spacing="5"><Label text="Autocomplete" styleClass="page-title"/>
+        <Label text="Write a sentence and choose suggested words as you go." styleClass="muted" wrapText="true" minHeight="-Infinity"/></VBox>
+    <HBox spacing="20" VBox.vgrow="ALWAYS">
+        <VBox styleClass="panel" spacing="16" HBox.hgrow="ALWAYS" minWidth="300">
+            <Label text="Your sentence" styleClass="section-title" labelFor="$inputField"/>
+            <TextField fx:id="inputField" promptText="Start typing…"/>
+            <Label text="Click a suggestion to add it. End with . ! or ? to save, or press Enter." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
+            <Region VBox.vgrow="ALWAYS"/>
+            <Label fx:id="statusLabel" wrapText="true" minHeight="-Infinity"/>
+        </VBox>
+        <VBox styleClass="panel" spacing="14" prefWidth="350" minWidth="300">
+            <Label text="Next word" styleClass="section-title"/>
+            <Label fx:id="suggestionsLabel" text="Suggestions appear as you type a word that has been followed before." styleClass="muted" wrapText="true" minHeight="-Infinity"/>
+            <ListView fx:id="suggestionList" minHeight="0" VBox.vgrow="ALWAYS"/>
+        </VBox>
+    </HBox>
 </VBox>

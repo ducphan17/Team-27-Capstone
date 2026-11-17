@@ -1,6 +1,6 @@
 # Changelog
 
-Current version: **2.7**
+Current version: **2.8**
 
 ## Instructions for future updates
 
@@ -30,6 +30,32 @@ Entry template:
 - Record checks performed and their results.
 - Note relevant checks still pending.
 ```
+
+## Version 2.8 — 2026-11-16
+
+**Author:** Aalvee Ahtav
+
+**Checkpoint:** Split workspace redesign, optional batch starting word, Josefin Sans typography, and dark mode.
+
+### Changes
+
+- **Shared interface (`main.fxml`, `app.css`, and all six tab views):** Added a consistent app header, teal accents, clearer page headings, aligned fields, and bordered settings/results panels. Import, Generate, Batch Generate, and Autocomplete use side-by-side workspaces. Batch settings scroll in shorter windows. The default window is now 1120 × 740, with a 960 × 640 minimum.
+- **Words Report:** Moved the existing word-pair inspector beside the word table, with a draggable horizontal divider. Both tables resize their columns to use the available width. Updated the selection hint to match the new layout. After rebasing onto the merged v2.7 inspector, retained its single-worker follower lookups, discarded obsolete requests, selection restoration with scroll-to-selection, single follower reload after refresh, and shared overflow-safe weights.
+- **`BatchGenerateController.java` / `batch_generate.fxml`:** Added **Starting word (optional)** with an **Automatic** placeholder. Blank or whitespace-only input keeps the existing selection weighted by `start_count`. A supplied word is trimmed and lowercased, checked against the database, and used for every sentence in the batch with either algorithm. Known words can be selected even if their `start_count` is zero. Multiple words, oversized words, and unknown words are rejected. The field is disabled while work runs; Enter starts generation.
+- **Single-sentence batch notice (`BatchGenerateController.java`, `batch_generate.fxml`, `app.css`):** Most frequent with a fixed starting word generates and saves only one sentence to avoid duplicate copies. When the requested count is greater than one, a yellow notice enclosed in parentheses appears below the **Generated sentences** heading and explains the reduction; the progress status shows **Batch complete.** The notice is hidden for subsequent batches that do not reduce the count. Yellow shades are defined for both light and dark themes.
+- **Batch validation:** Sentence-count and starting-word format/length checks run on the FX thread before the worker and elapsed timer start, with red validation messages. Generation and Add selected to corpus failures also use the error color; starting another valid operation clears the error state. Batch generation still opens one SQL connection and reuses it for starting-word validation/loading, generation lookups, and sentence inserts, retaining its existing partial-save behavior.
+- **`MainApp.java` / `fonts/` / `app.css`:** Bundled regular and bold Josefin Sans TrueType fonts with their SIL Open Font License. Fonts load before the interface is created and work offline without a system installation. Applied the family across the app with a 14-pixel base size. Font-loading failures log a warning and fall back to the system font so startup can continue.
+- **`MainController.java` / `main.fxml` / `app.css`:** Added a theme toggle in the header and shared light/dark color palettes for pages, panels, tabs, fields, tables, lists, selection, progress, duplicate highlights, and errors. Switching themes preserves the current view and entered text. The toggle offers **Light mode** while dark mode is active and **Dark mode** while light mode is active; its accessibility label follows the same action. Theme selection lasts for the current app session.
+- **`samples/SAGT 2024 Special Issue Introduction.txt`:** Added the introduction by Guido Schäfer and Carmine Ventre as an academic sample under CC BY 4.0. Removed author email addresses; source, license, attribution, and modification notes are recorded in `samples/README.md`.
+- **Tests and documentation:** Added seven batch regression tests covering optional-word normalization and format/length validation, automatic selection for whitespace-only input, explicit-word generation with both algorithms and one connection, unknown-word rejection, and saving only one sentence when 1000 are requested with Most frequent and a fixed word. Updated README descriptions for optional starting words and the inspector's placement.
+
+### Verification
+
+- After rebasing `06-ui-redesign` onto the merged word-pair inspector PR on `main` and applying the batch review fixes, `mvn -o test` passed all 141 unit tests with zero failures, errors, or skipped tests: the merged v2.7 suite of 134 plus seven batch starting-word and validation tests. The test run after moving the single-sentence notice also passed all 141 tests; the updated batch FXML passed XML validation and `git diff --check` passed. The yellow notice has not yet been visually checked in the running app. Resolved the README conflict by retaining the merged inspector behavior and the redesigned side-by-side layout description. No additional UI changes were required for the inspector review fixes. Running-app checks after this rebase and the MySQL integration suite remain pending.
+- Loaded and rendered all six JavaFX screens. Checked the split layouts and bundled Josefin Sans, including bold headings. Rendered every screen in both themes and verified that toggling updates the root theme state without changing entered text. Checked that the app accepts its minimum window size. `git diff --check` passed throughout these changes.
+- A contributor screenshot shows a completed 1000-sentence Weighted random batch with a full progress bar and an elapsed time of 12.7 seconds after the redesign. This is one observed run, not a controlled performance comparison, and predates the optional starting-word field.
+- The temporary UI preview encountered a macOS JavaFX native error while closing after one successful rendering check. Later previews rendered successfully; that shutdown issue was not investigated further.
+- Pending: verify the final toggle wording in the running app and exercise explicit-word generation against MySQL. The MySQL integration suite was not rerun; connection reuse and optional-word behavior were verified through tests with injected database dependencies.
 
 ## Version 2.7 — 2026-11-16
 

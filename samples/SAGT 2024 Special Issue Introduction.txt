@@ -1,0 +1,76 @@
+Introduction to the Special Issue for the Symposium on
+Algorithmic Game Theory (SAGT) 2024
+The 17th International Symposium on Algorithmic Game Theory (SAGT 2024) was held in Am-
+sterdam, The Netherlands, on September 3–6, 2024. SAGT provides a forum for research at the
+interface of computer science, economics, and game theory, including algorithmic mechanism
+design, computational social choice, equilibria and their efficiency, and matching and allocation
+problems. The authors of a selection of papers presented at SAGT 2024 were invited for submission
+to this special issue of ACM Transactions on Economics and Computation. The six papers collected
+here were substantially revised and extended, and refereed according to the journal’s standard
+process. Together, they illustrate the breadth of algorithmic game theory, combining structural and
+complexity-theoretic analysis with the design and evaluation of strategic systems.
+The first article, Leveraging Optimal Transport to Design Optimal Mechanisms for the Facility
+Location Problem, by Gennaro Auricchio and Jie Zhang, studies the 𝑘-facility location problem on the
+line in a Bayesian mechanism design setting, focusing on truthful percentile mechanisms. By relating
+the problem to projection in Wasserstein space, the authors characterize the asymptotic Bayesian
+approximation ratio of these mechanisms, establish convergence guarantees, and identify optimal
+percentile mechanisms tailored to the distribution of agents’ locations. The article additionally
+treats percentile vectors with entries at the boundary of the unit interval and extends the analysis
+from social cost to ℓ𝑝-norm and maximum-cost objectives.
+In Price of Anarchy in Paving Matroid Congestion Games, Bainian Hao and Carla Michini study
+how matroid structure limits the inefficiency of pure Nash equilibria in symmetric congestion
+games. They derive upper bounds for 𝑘-uniform and paving matroids under general classes of delay
+functions, as well as refined bounds for affine delays. Their analysis uses exchange flows between
+an equilibrium and a social optimum, thereby connecting matroid basis exchange with the price
+of anarchy. The resulting bounds show that the combinatorial structure of paving matroids can
+substantially restrict equilibrium inefficiency.
+The third contribution, Discrete Single-Parameter Optimal Auction Design, by Yiannis Gian-
+nakopoulos and Johannes Hahn, develops a discrete counterpart to central aspects of Myerson’s
+theory of optimal auctions. Using linear-programming duality and polyhedral methods, the authors
+derive virtual-welfare characterizations of revenue-optimal auctions for finite-support value distri-
+butions and show that deterministic dominant-strategy incentive-compatible auctions are optimal
+ACM Reference Format:
+Guido Schäfer and Carmine Ventre. 2026. Introduction to the Special Issue for the Symposium on Algorithmic
+Game Theory (SAGT) 2024. ACM Trans. Econ. Comput. 14, 3, Article 8 (September 2026), 2 pages. https:
+//doi.org/10.1145/3844354
+This work is licensed under a Creative Commons Attribution 4.0 International License.
+© 2026 Copyright held by the owner/author(s).
+ACM 2167-8375/2026/09-ART8
+https://doi.org/10.1145/3844354
+ACM Trans. Econ. Comput., Vol. 14, No. 3, Article 8. Publication date: September 2026.
+8:2 G. Schäfer and C. Ventre
+even against the wider class of Bayesian incentive-compatible mechanisms. They then extend the
+framework to general convex single-parameter environments and objectives combining revenue
+and social welfare, using KKT conditions to characterize generalized virtual-welfare maximization.
+The article also gives an application to capacitated flow auctions on trees.
+The informational resources needed to sustain strategic behavior is considered next in Playing
+Repeated Games with Sublinear Randomness, by Farid Arthaud. The article studies the entropy
+required for Nash equilibria in finitely repeated normal-form games when randomization is scarce
+or costly. It gives a complete characterization of games whose repeated versions admit constant-
+randomness equilibria and proves a zero–one law: a repeated game either admits equilibria using
+𝑂(1) randomness or every equilibrium requires randomness growing linearly with the number of
+repetitions. The paper further characterizes attainable payoff profiles and investigates settings with
+observable mixed strategies and with bounded randomness for only a subset of players.
+In Structural and Algorithmic Results for Stable Cycles and Partitions in the Roommates Problem,
+Frederik Glitzner and David Manlove investigate stable partitions, a solution concept that exists
+even when an instance of Stable Roommates has no stable matching. The authors establish new
+structural results for stable cycles and partitions, develop efficient enumeration algorithms, and
+show how stable partitions correspond to stable half-matchings. They also adapt several fairness
+and optimality criteria from stable matchings to stable partitions, identifying the tractable and
+intractable variants and giving approximation results for some of the latter.
+Finally, Estimating the Expected Social Welfare and Cost of Random Serial Dictatorship, by Ioannis
+Caragiannis and Sebastian Homrighausen, addresses the evaluation of random serial dictatorship in
+assignment problems. The authors consider both value-based and metric-cost settings and show that
+sampling a relatively small number of priority orderings is sufficient to approximate, respectively,
+the expected social welfare and expected social cost of random serial dictatorship. These results
+provide computationally practical estimators despite the #P-hardness of exact evaluation.
+We thank the authors for their careful revisions and extensions of their conference papers, and
+the anonymous reviewers for their constructive and thorough reports. We are also grateful to
+the SAGT 2024 Program Committee, the conference organizers, and the editorial team of ACM
+Transactions on Economics and Computation for their support in preparing this special issue.
+Guido Schäfer
+Centrum Wiskunde & Informatica, Netherlands and University of Amsterdam, Netherlands
+Carmine Ventre
+King’s College London, United Kingdom of Great Britain and Northern Ireland
+Guest Editors
+ACM Trans. Econ. Comput., Vol. 14, No. 3, Article 8. Publication date: September 2026.

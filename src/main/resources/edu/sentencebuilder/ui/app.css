@@ -1,10 +1,179 @@
+/* Shared, restrained workspace theme. */
+.root {
+    -sb-workspace: #f4f5f3;
+    -sb-surface: #ffffff;
+    -sb-text: #26322f;
+    -sb-muted: #64716b;
+    -sb-placeholder: #7b8880;
+    -sb-border: #d8dfda;
+    -sb-control-border: #c9d2cc;
+    -sb-hover-border: #9ab5a8;
+    -sb-hover: #edf4ef;
+    -sb-raised: #edf2ee;
+    -sb-stripe: #f7f9f6;
+    -sb-track: #e5ece7;
+    -sb-selected: #dceee7;
+    -sb-selected-focus: #d7eae2;
+    -sb-selected-text: #075f58;
+    -sb-accent: #0b756d;
+    -sb-accent-hover: #08655e;
+    -sb-accent-focus: #084b45;
+    -sb-focus-halo: #0b756d22;
+    -sb-error: #b42318;
+    -sb-warning: #9a7300;
+    -sb-duplicate: #fde9b3;
+    -fx-font-family: "Josefin Sans";
+    -fx-font-size: 14px;
+    -fx-background-color: -sb-workspace;
+    -fx-base: -sb-surface;
+    -fx-accent: -sb-accent;
+    -fx-focus-color: -sb-accent;
+    -fx-faint-focus-color: -sb-focus-halo;
+    -fx-text-background-color: -sb-text;
+    -fx-text-inner-color: -sb-text;
+    -fx-control-inner-background: -sb-surface;
+    -fx-control-inner-background-alt: -sb-stripe;
+    -fx-selection-bar: -sb-selected;
+    -fx-selection-bar-non-focused: -sb-selected;
+    -fx-light-text-color: -sb-text;
+    -fx-mid-text-color: -sb-text;
+    -fx-dark-text-color: -sb-text;
+}
+/* Theme colors are shared by every screen and control. */
+.root:dark {
+    -sb-workspace: #151c1a;
+    -sb-surface: #202a26;
+    -sb-text: #e8f0eb;
+    -sb-muted: #acbdb3;
+    -sb-placeholder: #95a99c;
+    -sb-border: #3b4b42;
+    -sb-control-border: #53665a;
+    -sb-hover-border: #7b9c89;
+    -sb-hover: #2c3b33;
+    -sb-raised: #293830;
+    -sb-stripe: #25312b;
+    -sb-track: #34453b;
+    -sb-selected: #294f45;
+    -sb-selected-focus: #315e50;
+    -sb-selected-text: #b5f1d9;
+    -sb-accent: #188678;
+    -sb-accent-hover: #20998a;
+    -sb-accent-focus: #8fdcc6;
+    -sb-focus-halo: #8fdcc633;
+    -sb-error: #ff9b91;
+    -sb-warning: #facc15;
+    -sb-duplicate: #594522;
+}
+.label { -fx-text-fill: -sb-text; }
+.label:error { -fx-text-fill: -sb-error; }
+.label.single-sentence-notice { -fx-text-fill: -sb-warning; }
+.app-header { -fx-padding: 18 28 14 28; -fx-background-color: -sb-surface; }
+.app-brand { -fx-font-size: 19px; -fx-font-weight: bold; }
+.tab-pane > .tab-header-area { -fx-padding: 0 28 0 28; }
+.tab-pane > .tab-header-area > .tab-header-background {
+    -fx-background-color: -sb-surface;
+    -fx-border-color: transparent transparent -sb-border transparent;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6 6 0 0;
+    -fx-padding: 13 21 13 21;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-color: transparent;
+}
+.tab-pane > .tab-header-area > .headers-region > .tab:hover { -fx-background-color: -sb-hover; }
+.tab-pane > .tab-header-area > .headers-region > .tab:selected {
+    -fx-background-color: -sb-selected;
+    -fx-border-color: transparent transparent -sb-accent transparent;
+}
+.tab .tab-label { -fx-text-fill: -sb-muted; }
+.tab:selected .tab-label { -fx-text-fill: -sb-selected-text; -fx-font-weight: bold; }
+.tab-pane:focused > .tab-header-area > .headers-region > .tab:selected .focus-indicator {
+    -fx-border-color: transparent;
+}
+.tab-pane:focused > .tab-header-area > .headers-region > .tab:selected { -fx-background-color: -sb-selected-focus; }
+.page { -fx-padding: 28; -fx-background-color: -sb-workspace; }
+.page-title { -fx-font-size: 30px; -fx-font-weight: bold; -fx-text-fill: -sb-text; }
+.muted { -fx-text-fill: -sb-muted; }
+.section-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -sb-muted; }
+.field-label { -fx-font-weight: bold; -fx-padding: 6 0 0 0; }
+.panel {
+    -fx-padding: 24;
+    -fx-background-color: -sb-surface;
+    -fx-background-radius: 7;
+    -fx-border-color: -sb-border;
+    -fx-border-radius: 7;
+}
+.sentence-result { -fx-font-size: 25px; -fx-text-fill: -sb-text; -fx-line-spacing: 5; }
+.button, .toggle-button {
+    -fx-background-color: -sb-surface;
+    -fx-background-radius: 5;
+    -fx-border-color: -sb-control-border;
+    -fx-border-radius: 5;
+    -fx-padding: 9 15;
+    -fx-cursor: hand;
+    -fx-text-fill: -sb-text;
+}
+.button:hover, .toggle-button:hover { -fx-background-color: -sb-hover; -fx-border-color: -sb-hover-border; }
+.button:focused, .toggle-button:focused { -fx-border-color: -sb-accent; }
+.button.primary {
+    -fx-background-color: -sb-accent;
+    -fx-border-color: -sb-accent;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-padding: 12 16;
+}
+.button.primary:hover { -fx-background-color: -sb-accent-hover; }
+.button.primary:focused { -fx-border-color: -sb-accent-focus; -fx-border-width: 2; -fx-padding: 11 15; }
+.text-field, .combo-box, .spinner {
+    -fx-background-color: -sb-surface;
+    -fx-background-insets: 0;
+    -fx-background-radius: 5;
+    -fx-border-color: -sb-control-border;
+    -fx-border-radius: 5;
+    -fx-pref-height: 39;
+}
+.text-field { -fx-padding: 8 11; -fx-prompt-text-fill: -sb-placeholder; }
+.text-field:focused, .combo-box:focused, .spinner:focused { -fx-border-color: -sb-accent; }
+.combo-box > .list-cell { -fx-padding: 8 11; }
+.spinner > .text-field { -fx-border-color: transparent; -fx-background-color: transparent; }
+.spinner > .increment-arrow-button, .spinner > .decrement-arrow-button {
+    -fx-background-color: -sb-raised;
+    -fx-background-insets: 1;
+}
+.table-view, .list-view {
+    -fx-background-color: -sb-surface;
+    -fx-background-insets: 0;
+    -fx-border-color: -sb-border;
+    -fx-border-radius: 4;
+    -fx-padding: 0;
+}
+.table-view .column-header-background, .table-view .column-header, .table-view .filler {
+    -fx-background-color: -sb-raised;
+}
+.table-view .column-header { -fx-size: 38; -fx-border-color: transparent transparent -sb-border transparent; }
+.table-view .column-header .label { -fx-alignment: CENTER_LEFT; -fx-padding: 0 10; -fx-text-fill: -sb-muted; }
+.table-cell { -fx-padding: 10; -fx-border-color: transparent; }
+.table-row-cell { -fx-background: -sb-surface; -fx-table-cell-border-color: transparent; }
+.table-row-cell:odd { -fx-background: -sb-stripe; }
+.table-row-cell:empty { -fx-background: -sb-surface; }
+.list-view .list-cell { -fx-padding: 12; -fx-background-color: -sb-surface; }
+.list-view .list-cell:filled:odd { -fx-background-color: -sb-stripe; }
+.list-view .list-cell:filled:selected { -fx-background-color: -sb-selected; -fx-text-fill: -sb-selected-text; }
+.progress-bar > .track { -fx-background-color: -sb-track; -fx-background-radius: 4; }
+.progress-bar > .bar { -fx-background-color: -sb-accent; -fx-background-insets: 0; -fx-background-radius: 4; }
+.split-pane { -fx-background-color: transparent; -fx-padding: 0; }
+.split-pane > .split-pane-divider { -fx-background-color: -sb-border; -fx-padding: 3; }
+.tooltip { -fx-text-fill: #ffffff; }
+
 /* Shared styles for the SentenceBuilder tabs. */
 
 /* Sentence History: sentences generated more than once.
    Setting -fx-background (not -fx-background-color) lets Modena pick a readable
    text color. Author styles beat Modena's, so restore the selection colors too. */
 .table-row-cell.duplicate {
-    -fx-background: #fde9b3;
+    -fx-background: -sb-duplicate;
 }
 .table-row-cell.duplicate:selected {
     -fx-background: -fx-selection-bar-non-focused;
@@ -12,3 +181,17 @@
 .table-view:focused .table-row-cell.duplicate:selected {
     -fx-background: -fx-selection-bar;
 }
+
+/* Keep batch settings reachable in shorter windows. */
+.settings-scroll, .settings-scroll > .viewport { -fx-background-color: transparent; }
+.settings-scroll { -fx-padding: 0; -fx-background-insets: 0; }
+
+.toggle-button:selected {
+    -fx-background-color: -sb-selected;
+    -fx-border-color: -sb-accent;
+    -fx-text-fill: -sb-selected-text;
+}
+.text-field, .table-cell, .list-cell { -fx-text-fill: -sb-text; }
+.table-row-cell:filled:selected .table-cell { -fx-text-fill: -sb-selected-text; }
+.combo-box .arrow, .spinner .increment-arrow, .spinner .decrement-arrow,
+.table-view .arrow { -fx-background-color: -sb-muted; }

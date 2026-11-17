@@ -164,7 +164,7 @@ public class WordsReportController {
         followersRefreshButton.setDisable(word == null);
         if (word == null) {
             followersTitle.setText("Word-pair inspector");
-            followersStatus.setText("Select a word above to see what can follow it.");
+            followersStatus.setText("Select a word to see what can follow it.");
             followersTable.setPlaceholder(new Label("Select a word to inspect its followers."));
             return;
         }
